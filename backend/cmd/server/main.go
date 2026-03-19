@@ -6,9 +6,10 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/joho/godotenv"
 
-	"bakasub-backend/internal/handlers"
+	"bakasub-backend/internal/routes"
 )
 
 func main() {
@@ -21,19 +22,15 @@ func main() {
 		log.Fatal("ERRO FATAL: OPENROUTER_API_KEY não está configurada.")
 	}
 
-	http.HandleFunc("/api/translate", handlers.TranslateHandler)
+	r := chi.NewRouter()
 
-	http.HandleFunc("/api/video/get-tracks", handlers.GetTrackHandler)
-
-	http.HandleFunc("/api/video/extract-track", handlers.ExtractTrackHandler)
-
-	http.HandleFunc("/api/video/merge-subtitle", handlers.MergeTrackHandler)
+	r.Mount("/api", routes.APIRoutes())
 
 	porta := ":8080"
 	fmt.Printf("Servidor inicializado com sucesso!\n")
-	fmt.Printf("Escutando requisições POST em http://localhost%s/api/translate\n", porta)
+	fmt.Printf("Escutando requisições em http://localhost%s\n", porta)
 
-	if err := http.ListenAndServe(porta, nil); err != nil {
+	if err := http.ListenAndServe(porta, r); err != nil {
 		log.Fatalf("Erro ao iniciar servidor: %v", err)
 	}
 }

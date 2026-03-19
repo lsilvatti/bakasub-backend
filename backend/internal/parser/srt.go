@@ -41,11 +41,17 @@ func ParseToBlocks(rawText string) []models.SubtitleBlock {
 			suffix := suffixRe.FindString(remainder)
 			cleanText := remainder[:len(remainder)-len(suffix)]
 
-			cleanTexts = append(cleanTexts, cleanText)
-			formats = append(formats, models.LineFormat{
-				Prefix: prefix,
-				Suffix: suffix,
-			})
+			if cleanText != "" {
+				cleanTexts = append(cleanTexts, cleanText)
+				formats = append(formats, models.LineFormat{
+					Prefix: prefix,
+					Suffix: suffix,
+				})
+			}
+		}
+
+		if len(cleanTexts) == 0 {
+			continue
 		}
 
 		parsedBlocks = append(parsedBlocks, models.SubtitleBlock{

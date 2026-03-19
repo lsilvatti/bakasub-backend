@@ -33,8 +33,6 @@ func TranslateText(text string, model string, apiKey string, targetLang string, 
 
 	languageName := models.Languages[targetLang]
 
-	fmt.Printf("Translating to %s using model %s with preset %s and API key %s\n", languageName, model, preset, apiKey)
-
 	reqBody := RequestBody{
 		Model: model,
 		Messages: []Message{

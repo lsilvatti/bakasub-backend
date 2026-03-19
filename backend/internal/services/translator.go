@@ -6,11 +6,14 @@ import (
 	"bakasub-backend/internal/models"
 	"bakasub-backend/internal/parser"
 	"fmt"
+	"regexp"
 	"strings"
 	"sync"
 )
 
-func ProcessSubtitleFile(inputPath string, model string, outputPath string, apiKey string, targetLang string, preset string) error {
+var separatorRegex = regexp.MustCompile(`\s*---NEXT---\s*`)
+
+func ProcessSubtitleFile(inputPath string, model string, outputPath string, apiKey string, targetLang string, preset string, removeSDH bool) error {
 
 	rawText, err := fileio.ReadFile(inputPath)
 	if err != nil {
@@ -18,8 +21,17 @@ func ProcessSubtitleFile(inputPath string, model string, outputPath string, apiK
 	}
 
 	blocks := parser.ParseToBlocks(rawText)
+
 	if len(blocks) == 0 {
 		return fmt.Errorf("nenhuma legenda encontrada")
+	}
+
+	if removeSDH {
+		blocks = parser.RemoveSDH(blocks)
+	}
+
+	if len(blocks) == 0 {
+		return fmt.Errorf("nenhuma legenda válida encontrada após filtragem")
 	}
 
 	var wg sync.WaitGroup
@@ -74,16 +86,29 @@ func ProcessSubtitleFile(inputPath string, model string, outputPath string, apiK
 			if err != nil {
 				mu.Lock()
 				if translationErr == nil {
-					translationErr = fmt.Errorf("erro ao traduzir bloco %s: %w", batch[0].ID, err)
+					translationErr = fmt.Errorf("erro ao traduzir lote %s: %w", batch[0].ID, err)
 				}
 				mu.Unlock()
 				return
 			}
 
-			translatedLines := strings.Split(translatedText, separator)
+			translatedLines := separatorRegex.Split(translatedText, -1)
+
+			if len(translatedLines) > 0 && strings.TrimSpace(translatedLines[len(translatedLines)-1]) == "" {
+				translatedLines = translatedLines[:len(translatedLines)-1]
+			}
 
 			if len(translatedLines) != len(batch) {
-				translatedLines = strings.Split(strings.TrimSpace(translatedText), "\n\n")
+				cleanText := separatorRegex.ReplaceAllString(translatedText, "\n\n")
+
+				fallbackLines := strings.Split(strings.TrimSpace(cleanText), "\n\n")
+
+				translatedLines = make([]string, len(batch))
+				for idx := range fallbackLines {
+					if idx < len(batch) {
+						translatedLines[idx] = fallbackLines[idx]
+					}
+				}
 			}
 
 			mu.Lock()

@@ -17,6 +17,7 @@ type TranslateRequest struct {
 	TargetLang string `json:"targetLang" validate:"required"`
 	Preset     string `json:"preset" validate:"required"`
 	Model      string `json:"model" validate:"required"`
+	RemoveSDH  bool   `json:"removeSDH"`
 }
 
 func TranslateHandler(w http.ResponseWriter, r *http.Request) {
@@ -48,7 +49,7 @@ func TranslateHandler(w http.ResponseWriter, r *http.Request) {
 	base := strings.TrimSuffix(filepath.Base(inputPath), ext)
 	outputPath := filepath.Join(dir, fmt.Sprintf("%s_%s%s", base, reqData.TargetLang, ext))
 
-	if err := services.ProcessSubtitleFile(inputPath, reqData.Model, outputPath, apiKey, reqData.TargetLang, reqData.Preset); err != nil {
+	if err := services.ProcessSubtitleFile(inputPath, reqData.Model, outputPath, apiKey, reqData.TargetLang, reqData.Preset, reqData.RemoveSDH); err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Falha no processamento: "+err.Error())
 		return
 	}

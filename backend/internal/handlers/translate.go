@@ -8,8 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/go-playground/validator/v10"
-
 	"bakasub-backend/internal/services"
 	"bakasub-backend/internal/utils"
 )
@@ -20,8 +18,6 @@ type TranslateRequest struct {
 	Preset     string `json:"preset" validate:"required"`
 	Model      string `json:"model" validate:"required"`
 }
-
-var validate = validator.New()
 
 func TranslateHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -35,7 +31,7 @@ func TranslateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := validate.Struct(reqData); err != nil {
+	if err := utils.Validate.Struct(reqData); err != nil {
 		utils.Error(w, http.StatusBadRequest, "Campos obrigatórios ausentes: "+err.Error())
 		return
 	}

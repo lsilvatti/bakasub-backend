@@ -37,7 +37,7 @@ func ProcessSubtitleFile(inputPath string, model string, outputPath string, apiK
 		return fmt.Errorf("apiKey is empty before starting translation")
 	}
 
-	const separator = "\n---SEP---\n"
+	const separator = "\n---NEXT---\n"
 
 	for i := 0; i < len(blocks); i += batchSize {
 		end := i + batchSize

@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/joho/godotenv"
 
+	"bakasub-backend/internal/db"
 	"bakasub-backend/internal/routes"
 )
 
@@ -22,9 +23,17 @@ func main() {
 		log.Fatal("ERRO FATAL: OPENROUTER_API_KEY não está configurada.")
 	}
 
+	database, err := db.InitDB("bakasub.db")
+
+	if err != nil {
+		log.Fatalf("Erro ao inicializar banco de dados: %v", err)
+	}
+
+	defer database.Close()
+
 	r := chi.NewRouter()
 
-	r.Mount("/api", routes.APIRoutes())
+	r.Mount("/api", routes.APIRoutes(database))
 
 	porta := ":8080"
 	fmt.Printf("Servidor inicializado com sucesso!\n")

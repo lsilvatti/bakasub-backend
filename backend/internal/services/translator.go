@@ -3,11 +3,15 @@ package services
 import (
 	"bakasub-backend/internal/ai"
 	"bakasub-backend/internal/fileio"
+	"bakasub-backend/internal/models"
 	"bakasub-backend/internal/parser"
 	"fmt"
+	"strings"
+	"sync"
 )
 
-func ProcessSubtitleFile(inputPath string, outputPath string, apiKey string) error {
+func ProcessSubtitleFile(inputPath string, model string, outputPath string, apiKey string, targetLang string, preset string) error {
+
 	rawText, err := fileio.ReadFile(inputPath)
 	if err != nil {
 		return fmt.Errorf("erro ao ler arquivo: %w", err)
@@ -18,19 +22,91 @@ func ProcessSubtitleFile(inputPath string, outputPath string, apiKey string) err
 		return fmt.Errorf("nenhuma legenda encontrada")
 	}
 
-	for i := range blocks {
-		translatedText, err := ai.TranslateText(blocks[i].Text, "google/gemini-2.5-flash", apiKey)
-		if err != nil {
-			return fmt.Errorf("erro ao traduzir bloco %s: %w", blocks[i].ID, err)
-		}
-		blocks[i].Text = translatedText
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var translationErr error
+
+	batchSize := models.Presets[preset].BatchSize
+	if batchSize < 1 {
+		batchSize = 1
 	}
 
-	finalText := parser.BuildString(blocks)
+	var limit = make(chan struct{}, 5)
 
-	err = fileio.SaveFile(outputPath, finalText)
-	if err != nil {
-		return fmt.Errorf("erro ao salvar arquivo final: %w", err)
+	if apiKey == "" {
+		return fmt.Errorf("apiKey is empty before starting translation")
+	}
+
+	const separator = "\n---SEP---\n"
+
+	for i := 0; i < len(blocks); i += batchSize {
+		end := i + batchSize
+
+		if end > len(blocks) {
+			end = len(blocks)
+		}
+
+		currentBatch := blocks[i:end]
+
+		wg.Add(1)
+		limit <- struct{}{}
+
+		go func(batch []models.SubtitleBlock) {
+			defer wg.Done()
+			defer func() { <-limit }()
+
+			mu.Lock()
+			if translationErr != nil {
+				mu.Unlock()
+				return
+			}
+			mu.Unlock()
+
+			var texts []string
+			for _, block := range batch {
+				texts = append(texts, block.Text)
+			}
+
+			joinedText := strings.Join(texts, separator)
+
+			translatedText, err := ai.TranslateText(joinedText, model, apiKey, targetLang, preset)
+
+			if err != nil {
+				mu.Lock()
+				if translationErr == nil {
+					translationErr = fmt.Errorf("erro ao traduzir bloco %s: %w", batch[0].ID, err)
+				}
+				mu.Unlock()
+				return
+			}
+
+			translatedLines := strings.Split(translatedText, separator)
+
+			if len(translatedLines) != len(batch) {
+				translatedLines = strings.Split(strings.TrimSpace(translatedText), "\n\n")
+			}
+
+			mu.Lock()
+			for i := range batch {
+				if i < len(translatedLines) {
+					batch[i].Text = strings.TrimSpace(translatedLines[i])
+				}
+			}
+			mu.Unlock()
+
+		}(currentBatch)
+	}
+
+	wg.Wait()
+
+	if translationErr != nil {
+		return translationErr
+	}
+
+	outputText := parser.BuildString(blocks)
+
+	if err := fileio.SaveFile(outputPath, outputText); err != nil {
+		return fmt.Errorf("erro ao escrever arquivo: %w", err)
 	}
 
 	return nil

@@ -24,3 +24,7 @@ func JSON(w http.ResponseWriter, statusCode int, status string, message string, 
 func Error(w http.ResponseWriter, statusCode int, message string) {
 	JSON(w, statusCode, "error", message, nil)
 }
+
+func Success(w http.ResponseWriter, statusCode int, message string) {
+	JSON(w, statusCode, "success", message, nil)
+}

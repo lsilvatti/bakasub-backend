@@ -53,14 +53,14 @@ var Presets = map[string]TranslationPreset{
 }
 
 var Languages = map[string]string{
-	"en":   "English",
-	"es":   "Spanish",
-	"fr":   "French",
-	"de":   "German",
-	"zh":   "Chinese",
-	"ja":   "Japanese",
-	"ko":   "Korean",
-	"ru":   "Russian",
-	"pt":   "Portuguese",
-	"ptbr": "Brazilian Portuguese",
+	"en": "English",
+	"es": "Spanish",
+	"fr": "French",
+	"de": "German",
+	"zh": "Chinese",
+	"ja": "Japanese",
+	"ko": "Korean",
+	"ru": "Russian",
+	"pt": "Portuguese",
+	"br": "Brazilian Portuguese",
 }

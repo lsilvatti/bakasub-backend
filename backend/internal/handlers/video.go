@@ -8,25 +8,6 @@ import (
 	"bakasub-backend/internal/video"
 )
 
-// --- STRUCTS DE REQUEST ---
-
-type GetTrackRequest struct {
-	VideoPath string `json:"videoPath" validate:"required"`
-}
-
-type ExtractTrackRequest struct {
-	VideoPath  string `json:"videoPath" validate:"required"`
-	SubtitleId int    `json:"subtitleId" validate:"required"`
-}
-
-type MergeTrackRequest struct {
-	VideoPath string `json:"videoPath" validate:"required"`
-	SrtPath   string `json:"srtPath" validate:"required"`
-	LangCode  string `json:"langCode" validate:"required"`
-}
-
-// --- HANDLERS ---
-
 func GetTrackHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		utils.Error(w, http.StatusMethodNotAllowed, "Método não permitido")

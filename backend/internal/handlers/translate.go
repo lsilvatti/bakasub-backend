@@ -12,14 +12,6 @@ import (
 	"bakasub-backend/internal/utils"
 )
 
-type TranslateRequest struct {
-	FilePath   string `json:"filePath" validate:"required"`
-	TargetLang string `json:"targetLang" validate:"required"`
-	Preset     string `json:"preset" validate:"required"`
-	Model      string `json:"model" validate:"required"`
-	RemoveSDH  bool   `json:"removeSDH"`
-}
-
 func TranslateHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		utils.Error(w, http.StatusMethodNotAllowed, "Método não permitido")

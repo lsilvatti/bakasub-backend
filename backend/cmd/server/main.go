@@ -23,6 +23,12 @@ func main() {
 
 	http.HandleFunc("/api/translate", handlers.TranslateHandler)
 
+	http.HandleFunc("/api/video/get-tracks", handlers.GetTrackHandler)
+
+	http.HandleFunc("/api/video/extract-track", handlers.ExtractTrackHandler)
+
+	http.HandleFunc("/api/video/merge-subtitle", handlers.MergeTrackHandler)
+
 	porta := ":8080"
 	fmt.Printf("Servidor inicializado com sucesso!\n")
 	fmt.Printf("Escutando requisições POST em http://localhost%s/api/translate\n", porta)

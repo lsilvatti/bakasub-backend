@@ -24,10 +24,25 @@ func NewFolderService(db *sql.DB, fs FolderFileSystemProvider) *FolderService {
 	}
 }
 
-func (s *FolderService) AddFolder(alias, path string) error {
+func (s *FolderService) AddFolder(folder models.FolderConfig) error {
 	query := "INSERT INTO favorite_folders (alias, path) VALUES (?, ?)"
-	_, err := s.DB.Exec(query, alias, path)
+	_, err := s.DB.Exec(query, folder.Alias, folder.Path)
 	return err
+}
+
+func (s *FolderService) RemoveFolder(id int) bool {
+	query := "DELETE FROM favorite_folders WHERE id = ?"
+	result, err := s.DB.Exec(query, id)
+	if err != nil {
+		return false
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return false
+	}
+
+	return rowsAffected > 0
 }
 
 func (s *FolderService) GetFolders() ([]models.FolderConfig, error) {
@@ -86,4 +101,50 @@ func (s *FolderService) IsSubtitleFile(filePath string) bool {
 		}
 	}
 	return false
+}
+
+func (s *FolderService) IsFolder(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return info.IsDir()
+}
+
+func (s *FolderService) IsFile(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return !info.IsDir()
+}
+
+func (s *FolderService) ListVideoFiles(folderPath string) ([]string, error) {
+	entries, err := s.FS.ReadFolder(folderPath)
+	if err != nil {
+		return nil, err
+	}
+
+	videoFiles := make([]string, 0)
+	for _, entry := range entries {
+		if !entry.IsDir() && s.IsVideoFile(entry.Name()) {
+			videoFiles = append(videoFiles, entry.Name())
+		}
+	}
+	return videoFiles, nil
+}
+
+func (s *FolderService) ListSubtitleFiles(folderPath string) ([]string, error) {
+	entries, err := s.FS.ReadFolder(folderPath)
+	if err != nil {
+		return nil, err
+	}
+
+	subtitleFiles := make([]string, 0)
+	for _, entry := range entries {
+		if !entry.IsDir() && s.IsSubtitleFile(entry.Name()) {
+			subtitleFiles = append(subtitleFiles, entry.Name())
+		}
+	}
+	return subtitleFiles, nil
 }

@@ -1,0 +1,17 @@
+meta {
+  name: Delete Folder
+  type: http
+  seq: 3
+}
+
+delete {
+  url: http://localhost:8080/api/folders
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "id": 1
+  }
+}

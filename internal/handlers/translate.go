@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -12,7 +11,7 @@ import (
 )
 
 type SubtitleTranslator interface {
-	ProcessSubtitleFile(inputPath string, model string, outputPath string, apiKey string, targetLang string, preset string, removeSDH bool) error
+	ProcessSubtitleFile(inputPath string, model string, outputPath string, apiKey string, targetLang string, preset string, removeSDH bool, context string) error
 }
 
 type TranslateHandler struct {
@@ -21,24 +20,19 @@ type TranslateHandler struct {
 
 func (h *TranslateHandler) Translate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		utils.Error(w, http.StatusMethodNotAllowed, "Método não permitido")
+		utils.Error(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
 
-	var reqData TranslateRequest
-	if err := json.NewDecoder(r.Body).Decode(&reqData); err != nil {
-		utils.Error(w, http.StatusBadRequest, "JSON inválido")
-		return
-	}
-
-	if err := utils.Validate.Struct(reqData); err != nil {
-		utils.Error(w, http.StatusBadRequest, "Campos obrigatórios ausentes: "+err.Error())
+	reqData, err := utils.DecodeAndValidate[TranslateRequest](r)
+	if err != nil {
+		utils.Error(w, http.StatusBadRequest, "Invalid data: "+err.Error())
 		return
 	}
 
 	apiKey := os.Getenv("OPENROUTER_API_KEY")
 	if apiKey == "" {
-		utils.Error(w, http.StatusInternalServerError, "Configuração de API ausente")
+		utils.Error(w, http.StatusInternalServerError, "Missing API configuration")
 		return
 	}
 
@@ -48,12 +42,12 @@ func (h *TranslateHandler) Translate(w http.ResponseWriter, r *http.Request) {
 	base := strings.TrimSuffix(filepath.Base(inputPath), ext)
 	outputPath := filepath.Join(dir, fmt.Sprintf("%s_%s%s", base, reqData.TargetLang, ext))
 
-	if err := h.Translator.ProcessSubtitleFile(inputPath, reqData.Model, outputPath, apiKey, reqData.TargetLang, reqData.Preset, reqData.RemoveSDH); err != nil {
-		utils.Error(w, http.StatusInternalServerError, "Falha no processamento: "+err.Error())
+	if err := h.Translator.ProcessSubtitleFile(inputPath, reqData.Model, outputPath, apiKey, reqData.TargetLang, reqData.Preset, reqData.RemoveSDH, reqData.Context); err != nil {
+		utils.Error(w, http.StatusInternalServerError, "Processing failed: "+err.Error())
 		return
 	}
 
-	utils.JSON(w, http.StatusOK, "success", "Tradução concluída", map[string]string{
+	utils.JSON(w, http.StatusOK, "success", "Translation completed", map[string]string{
 		"output_path": outputPath,
 	})
 }

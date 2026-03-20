@@ -1,0 +1,18 @@
+meta {
+  name: Add Folder
+  type: http
+  seq: 2
+}
+
+post {
+  url: http://localhost:8080/api/folders
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "alias": "Downloads",
+    "path": "/home/lsilvatti/Code/Bakasub/jojo.mkv"
+  }
+}

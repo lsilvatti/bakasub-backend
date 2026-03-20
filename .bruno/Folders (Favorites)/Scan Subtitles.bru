@@ -1,0 +1,15 @@
+meta {
+  name: Scan Subtitles
+  type: http
+  seq: 4
+}
+
+get {
+  url: http://localhost:8080/api/folders/scan/subtitles?path=/home/lsilvatti/Code/Bakasub
+  body: none
+  auth: none
+}
+
+params:query {
+  path: /home/lsilvatti/Code/Bakasub
+}

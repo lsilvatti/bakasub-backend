@@ -1,9 +1,9 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 
+	"bakasub-backend/internal/models"
 	"bakasub-backend/internal/services"
 	"bakasub-backend/internal/utils"
 )
@@ -11,78 +11,73 @@ import (
 type VideoProcessor interface {
 	ScanSubtitles(videoPath string) ([]services.SubtitleTrack, error)
 	ExtractSubtitle(videoPath string, subtitleId int) (string, error)
-	MergeSubtitle(videoPath string, srtPath string, langCode string) (string, error)
+	MergeSubtitle(videoPath string, srtPath string, langCode string, timeoutMinutes int) (string, error)
+}
+
+type ConfigProvider interface {
+	GetConfig() (*models.UserConfig, error)
 }
 
 type VideoHandler struct {
 	Processor VideoProcessor
+	Config    ConfigProvider
 }
 
 func (h *VideoHandler) GetTrackHandler(w http.ResponseWriter, r *http.Request) {
-	var reqData GetTrackRequest
-	if err := json.NewDecoder(r.Body).Decode(&reqData); err != nil {
-		utils.Error(w, http.StatusBadRequest, "JSON inválido")
+	path := r.URL.Query().Get("path")
+	if path == "" {
+		utils.Error(w, http.StatusBadRequest, "Missing 'path' query parameter")
 		return
 	}
 
-	if err := utils.Validate.Struct(reqData); err != nil {
-		utils.Error(w, http.StatusBadRequest, "Campos obrigatórios ausentes: "+err.Error())
-		return
-	}
-
-	tracks, err := h.Processor.ScanSubtitles(reqData.VideoPath)
+	tracks, err := h.Processor.ScanSubtitles(path)
 	if err != nil {
-		utils.Error(w, http.StatusInternalServerError, "Erro ao mapear arquivo: "+err.Error())
+		utils.Error(w, http.StatusInternalServerError, "Error mapping file: "+err.Error())
 		return
 	}
 
-	utils.JSON(w, http.StatusOK, "success", "Trilhas lidas com sucesso", map[string]interface{}{
+	utils.JSON(w, http.StatusOK, "success", "Tracks read successfully", map[string]interface{}{
 		"tracks": tracks,
 	})
 }
 
 func (h *VideoHandler) ExtractTrackHandler(w http.ResponseWriter, r *http.Request) {
-	var reqData ExtractTrackRequest
-	if err := json.NewDecoder(r.Body).Decode(&reqData); err != nil {
-		utils.Error(w, http.StatusBadRequest, "JSON inválido")
-		return
-	}
-
-	if err := utils.Validate.Struct(reqData); err != nil {
-		utils.Error(w, http.StatusBadRequest, "Campos obrigatórios ausentes: "+err.Error())
+	reqData, err := utils.DecodeAndValidate[ExtractTrackRequest](r)
+	if err != nil {
+		utils.Error(w, http.StatusBadRequest, "Invalid data: "+err.Error())
 		return
 	}
 
 	srtPath, err := h.Processor.ExtractSubtitle(reqData.VideoPath, reqData.SubtitleId)
 	if err != nil {
-		utils.Error(w, http.StatusInternalServerError, "Erro ao extrair legenda: "+err.Error())
+		utils.Error(w, http.StatusInternalServerError, "Error extracting subtitle: "+err.Error())
 		return
 	}
 
-	utils.JSON(w, http.StatusOK, "success", "Legenda extraída com sucesso", map[string]interface{}{
+	utils.JSON(w, http.StatusOK, "success", "Subtitle extracted successfully", map[string]interface{}{
 		"srtPath": srtPath,
 	})
 }
 
 func (h *VideoHandler) MergeTrackHandler(w http.ResponseWriter, r *http.Request) {
-	var reqData MergeTrackRequest
-	if err := json.NewDecoder(r.Body).Decode(&reqData); err != nil {
-		utils.Error(w, http.StatusBadRequest, "JSON inválido")
-		return
-	}
-
-	if err := utils.Validate.Struct(reqData); err != nil {
-		utils.Error(w, http.StatusBadRequest, "Campos obrigatórios ausentes: "+err.Error())
-		return
-	}
-
-	outVideoPath, err := h.Processor.MergeSubtitle(reqData.VideoPath, reqData.SrtPath, reqData.LangCode)
+	reqData, err := utils.DecodeAndValidate[MergeTrackRequest](r)
 	if err != nil {
-		utils.Error(w, http.StatusInternalServerError, "Erro ao mesclar legenda: "+err.Error())
+		utils.Error(w, http.StatusBadRequest, "Invalid data: "+err.Error())
 		return
 	}
 
-	utils.JSON(w, http.StatusOK, "success", "Vídeo gerado com sucesso", map[string]interface{}{
+	timeout := 20
+	if cfg, err := h.Config.GetConfig(); err == nil && cfg != nil {
+		timeout = cfg.VideoTimeoutMinutes
+	}
+
+	outVideoPath, err := h.Processor.MergeSubtitle(reqData.VideoPath, reqData.SrtPath, reqData.LangCode, timeout)
+	if err != nil {
+		utils.Error(w, http.StatusInternalServerError, "Error merging subtitle: "+err.Error())
+		return
+	}
+
+	utils.JSON(w, http.StatusOK, "success", "Video generated successfully", map[string]interface{}{
 		"outVideoPath": outVideoPath,
 	})
 }

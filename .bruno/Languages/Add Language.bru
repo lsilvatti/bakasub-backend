@@ -1,0 +1,18 @@
+meta {
+  name: Add Language
+  type: http
+  seq: 2
+}
+
+post {
+  url: http://localhost:8080/api/languages
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "code": "it",
+    "name": "Italiano"
+  }
+}

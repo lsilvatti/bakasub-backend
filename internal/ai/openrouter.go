@@ -6,8 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-
-	"bakasub-backend/internal/models"
+	"time"
 )
 
 type Message struct {
@@ -32,19 +31,19 @@ func NewOpenRouterService() *OpenRouterService {
 	return &OpenRouterService{}
 }
 
-var httpClient = &http.Client{}
+var httpClient = &http.Client{
+	Timeout: 60 * time.Second,
+}
 
-func (s *OpenRouterService) TranslateText(text string, model string, apiKey string, targetLang string, preset string) (string, error) {
+func (s *OpenRouterService) TranslateText(text string, model string, apiKey string, targetLangName string, systemPrompt string) (string, error) {
 	url := "https://openrouter.ai/api/v1/chat/completions"
-
-	languageName := models.Languages[targetLang]
 
 	reqBody := RequestBody{
 		Model: model,
 		Messages: []Message{
 			{
 				Role:    "system",
-				Content: fmt.Sprintf(models.Presets[preset].SystemPrompt+" Traduza para %s.", languageName),
+				Content: fmt.Sprintf("%s Translate input to target language: %s.", systemPrompt, targetLangName),
 			},
 			{
 				Role:    "user",
@@ -88,7 +87,7 @@ func (s *OpenRouterService) TranslateText(text string, model string, apiKey stri
 
 	if len(resBody.Choices) == 0 || resBody.Choices[0].Message.Content == "" {
 		fmt.Printf("--- ALERTA: Resposta Vazia da IA ---\nBody Completo: %s\n-------------------\n", string(bodyBytes))
-		return "", fmt.Errorf("nenhuma tradução encontrada (possível filtro de conteúdo)")
+		return "", fmt.Errorf("no translation found (possible content filter)")
 	}
 
 	return resBody.Choices[0].Message.Content, nil

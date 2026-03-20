@@ -2,20 +2,19 @@ package handlers
 
 import (
 	"database/sql"
-	"encoding/json"
 	"net/http"
 
 	"bakasub-backend/internal/models"
 	"bakasub-backend/internal/utils"
 )
 
-type ConfigProcessor interface {
-	GetConfig() (models.UserConfig, error)
+type ConfigService interface {
+	GetConfig() (*models.UserConfig, error)
 	UpdateConfig(config models.UserConfig) error
 }
 
 type ConfigHandler struct {
-	Service ConfigProcessor
+	Service ConfigService
 }
 
 func (h *ConfigHandler) GetUserConfig(w http.ResponseWriter, r *http.Request) {
@@ -34,19 +33,13 @@ func (h *ConfigHandler) GetUserConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ConfigHandler) UpdateUserConfig(w http.ResponseWriter, r *http.Request) {
-	var config models.UserConfig
-
-	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
-		utils.Error(w, http.StatusBadRequest, "Invalid request payload")
-		return
-	}
-
-	if err := utils.Validate.Struct(config); err != nil {
+	reqData, err := utils.DecodeAndValidate[UpdateConfigRequest](r)
+	if err != nil {
 		utils.Error(w, http.StatusBadRequest, "Invalid request data: "+err.Error())
 		return
 	}
 
-	if err := h.Service.UpdateConfig(config); err != nil {
+	if err := h.Service.UpdateConfig(reqData.ToModel()); err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Failed to update user config: "+err.Error())
 		return
 	}

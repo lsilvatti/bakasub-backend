@@ -1,0 +1,18 @@
+meta {
+  name: Extract Track
+  type: http
+  seq: 2
+}
+
+post {
+  url: http://localhost:8080/api/video/extract-track
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "videoPath": "/home/lsilvatti/Code/Bakasub/jojo.mkv",
+    "subtitleId": 2
+  }
+}

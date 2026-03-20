@@ -5,23 +5,24 @@ import (
 	"bakasub-backend/internal/fileio"
 	"bakasub-backend/internal/handlers"
 	"bakasub-backend/internal/services"
+	"database/sql"
 
 	"github.com/go-chi/chi/v5"
 )
 
-func TranslateRoutes() chi.Router {
+func OpenRouterTranslateRoutes(database *sql.DB) chi.Router {
 	r := chi.NewRouter()
 
 	openRouterService := ai.NewOpenRouterService()
 	diskService := fileio.NewFileIOService()
 
-	translationService := services.NewTranslatorService(openRouterService, diskService)
+	translationService := services.NewTranslatorService(openRouterService, diskService, database)
 
 	translateHandler := &handlers.TranslateHandler{
 		Translator: translationService,
 	}
 
-	r.Post("/", translateHandler.Translate)
+	r.Post("/translate", translateHandler.Translate)
 
 	return r
 }

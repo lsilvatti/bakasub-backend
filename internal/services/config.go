@@ -13,29 +13,30 @@ func NewConfigService(db *sql.DB) *ConfigService {
 	return &ConfigService{DB: db}
 }
 
-func (s *ConfigService) GetConfig() (models.UserConfig, error) {
-	query := "SELECT default_model, default_preset, remove_sdh_default FROM user_configs WHERE id = 1"
+func (s *ConfigService) GetConfig() (*models.UserConfig, error) {
+	query := "SELECT default_model, default_preset, remove_sdh_default, video_timeout_minutes FROM user_configs WHERE id = 1"
 	row := s.DB.QueryRow(query)
 
 	var config models.UserConfig
-	err := row.Scan(&config.DefaultModel, &config.DefaultPreset, &config.RemoveSdhDefault)
+	err := row.Scan(&config.DefaultModel, &config.DefaultPreset, &config.RemoveSdhDefault, &config.VideoTimeoutMinutes)
 
 	if err != nil {
-		return config, err // Retornamos o erro para o handler tratar (ex: ErrNoRows)
+		return nil, err
 	}
 
-	return config, nil
+	return &config, nil
 }
 
 func (s *ConfigService) UpdateConfig(config models.UserConfig) error {
 	query := `
-	INSERT INTO user_configs (id, default_model, default_preset, remove_sdh_default)
-	VALUES (1, ?, ?, ?)
-	ON CONFLICT(id) DO UPDATE SET
-		default_model=excluded.default_model,
-		default_preset=excluded.default_preset,
-		remove_sdh_default=excluded.remove_sdh_default;
-	`
-	_, err := s.DB.Exec(query, config.DefaultModel, config.DefaultPreset, config.RemoveSdhDefault)
+    INSERT INTO user_configs (id, default_model, default_preset, remove_sdh_default, video_timeout_minutes)
+    VALUES (1, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+        default_model=excluded.default_model,
+        default_preset=excluded.default_preset,
+        remove_sdh_default=excluded.remove_sdh_default,
+        video_timeout_minutes=excluded.video_timeout_minutes;
+    `
+	_, err := s.DB.Exec(query, config.DefaultModel, config.DefaultPreset, config.RemoveSdhDefault, config.VideoTimeoutMinutes)
 	return err
 }

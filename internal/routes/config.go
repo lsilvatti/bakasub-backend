@@ -13,7 +13,9 @@ func ConfigRoutes(database *sql.DB) chi.Router {
 
 	configService := services.NewConfigService(database)
 
-	configHandler := handlers.ConfigHandler{Service: configService}
+	configHandler := &handlers.ConfigHandler{
+		Service: configService,
+	}
 
 	r.Get("/", configHandler.GetUserConfig)
 	r.Put("/", configHandler.UpdateUserConfig)

@@ -61,11 +61,12 @@ func (s *TranslatorService) ProcessSubtitleFile(inputPath string, model string, 
 	var assDoc *parser.ASSDocument
 	var vttHeader string
 
-	if ext == ".ass" || ext == ".ssa" {
+	switch ext {
+	case ".ass", ".ssa":
 		assDoc, blocks = parser.ParseASS(rawText)
-	} else if ext == ".vtt" {
+	case ".vtt":
 		vttHeader, blocks = parser.ParseVTT(rawText)
-	} else {
+	default:
 		blocks = parser.ParseToBlocks(rawText) // Default: SRT
 	}
 

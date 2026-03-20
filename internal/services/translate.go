@@ -184,12 +184,13 @@ func (s *TranslatorService) ProcessSubtitleFile(inputPath string, model string, 
 	}
 
 	var outputText string
-	if ext == ".ass" || ext == ".ssa" {
+	switch ext {
+	case ".ass", ".ssa":
 		outputText = parser.BuildASS(assDoc, blocks)
-	} else if ext == ".vtt" {
+	case ".vtt":
 		outputText = parser.BuildVTT(vttHeader, blocks)
-	} else {
-		outputText = parser.BuildString(blocks) // Default: SRT
+	default:
+		outputText = parser.BuildString(blocks)
 	}
 
 	if err := s.FS.SaveFile(outputPath, outputText); err != nil {

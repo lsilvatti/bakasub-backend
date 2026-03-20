@@ -21,6 +21,7 @@ func APIRoutes(database *sql.DB) chi.Router {
 	r.Mount("/folders", FoldersRoutes(database))
 	r.Mount("/presets", PresetRoutes(database))
 	r.Mount("/languages", LanguageRoutes(database))
+	r.Mount("/logs", LogRoutes(database))
 
 	return r
 }

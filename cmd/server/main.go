@@ -16,6 +16,7 @@ import (
 
 	"bakasub-backend/internal/db"
 	"bakasub-backend/internal/routes"
+	"bakasub-backend/internal/utils"
 )
 
 func main() {
@@ -33,8 +34,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error initializing database: %v", err)
 	}
-
 	defer database.Close()
+
+	utils.InitLogger(database)
 
 	r := chi.NewRouter()
 

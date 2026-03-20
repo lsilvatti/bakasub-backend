@@ -5,4 +5,5 @@ type UserConfig struct {
 	DefaultPreset       string `json:"default_preset"`
 	RemoveSdhDefault    bool   `json:"remove_sdh_default"`
 	VideoTimeoutMinutes int    `json:"video_timeout_minutes"`
+	LogRetentionDays    int    `json:"log_retention_days"`
 }

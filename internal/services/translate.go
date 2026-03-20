@@ -89,11 +89,11 @@ func (s *TranslatorService) ProcessSubtitleFile(inputPath string, model string, 
 	const separator = "\n---NEXT---\n"
 	separatorLen := len(separator)
 
-	var batches [][]models.SubtitleBlock
-	var currentBatch []models.SubtitleBlock
+	var batches [][]int
+	var currentBatch []int
 	currentChars := 0
 
-	for _, block := range blocks {
+	for i, block := range blocks {
 		blockLen := len(block.Text)
 
 		if currentChars+blockLen > maxChars && len(currentBatch) > 0 {
@@ -102,7 +102,7 @@ func (s *TranslatorService) ProcessSubtitleFile(inputPath string, model string, 
 			currentChars = 0
 		}
 
-		currentBatch = append(currentBatch, block)
+		currentBatch = append(currentBatch, i)
 		currentChars += blockLen + separatorLen
 	}
 
@@ -116,11 +116,11 @@ func (s *TranslatorService) ProcessSubtitleFile(inputPath string, model string, 
 
 	var limit = make(chan struct{}, 5)
 
-	for _, batch := range batches {
+	for _, batchIndices := range batches {
 		wg.Add(1)
 		limit <- struct{}{}
 
-		go func(currentBatch []models.SubtitleBlock) {
+		go func(indices []int) {
 			defer wg.Done()
 			defer func() { <-limit }()
 
@@ -132,8 +132,8 @@ func (s *TranslatorService) ProcessSubtitleFile(inputPath string, model string, 
 			mu.Unlock()
 
 			var texts []string
-			for _, block := range currentBatch {
-				texts = append(texts, block.Text)
+			for _, idx := range indices {
+				texts = append(texts, blocks[idx].Text)
 			}
 
 			joinedText := strings.Join(texts, separator)
@@ -143,7 +143,8 @@ func (s *TranslatorService) ProcessSubtitleFile(inputPath string, model string, 
 			if err != nil {
 				mu.Lock()
 				if translationErr == nil {
-					translationErr = fmt.Errorf("error translating batch %s: %w", currentBatch[0].ID, err)
+					// Mostra o índice inicial em caso de erro para ajudar no debug
+					translationErr = fmt.Errorf("error translating batch starting at line index %d: %w", indices[0], err)
 				}
 				mu.Unlock()
 				return
@@ -155,27 +156,27 @@ func (s *TranslatorService) ProcessSubtitleFile(inputPath string, model string, 
 				translatedLines = translatedLines[:len(translatedLines)-1]
 			}
 
-			if len(translatedLines) != len(currentBatch) {
+			if len(translatedLines) != len(indices) {
 				cleanText := separatorRegex.ReplaceAllString(translatedText, "\n\n")
 				fallbackLines := strings.Split(strings.TrimSpace(cleanText), "\n\n")
 
-				translatedLines = make([]string, len(currentBatch))
-				for idx := range fallbackLines {
-					if idx < len(currentBatch) {
-						translatedLines[idx] = fallbackLines[idx]
+				translatedLines = make([]string, len(indices))
+				for i := range fallbackLines {
+					if i < len(indices) {
+						translatedLines[i] = fallbackLines[i]
 					}
 				}
 			}
 
 			mu.Lock()
-			for i := range currentBatch {
+			for i, idx := range indices {
 				if i < len(translatedLines) {
-					currentBatch[i].Text = strings.TrimSpace(translatedLines[i])
+					blocks[idx].Text = strings.TrimSpace(translatedLines[i])
 				}
 			}
 			mu.Unlock()
 
-		}(batch)
+		}(batchIndices)
 	}
 
 	wg.Wait()

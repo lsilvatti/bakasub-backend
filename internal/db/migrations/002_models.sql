@@ -10,7 +10,7 @@ CREATE TABLE translation_presets (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-INSERT INTO translation_presets (id, alias, name, system_prompt, batch_size, temperature) VALUES
+INSERT INTO translation_presets (alias, name, system_prompt, batch_size, temperature) VALUES
 (
     'movie', 
     'Movies & Series', 

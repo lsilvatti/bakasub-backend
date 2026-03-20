@@ -8,13 +8,13 @@ import (
 	"bakasub-backend/internal/utils"
 )
 
-type ConfigProcessor interface {
-	GetConfig() (models.UserConfig, error)
+type ConfigService interface {
+	GetConfig() (*models.UserConfig, error)
 	UpdateConfig(config models.UserConfig) error
 }
 
 type ConfigHandler struct {
-	Service ConfigProcessor
+	Service ConfigService
 }
 
 func (h *ConfigHandler) GetUserConfig(w http.ResponseWriter, r *http.Request) {

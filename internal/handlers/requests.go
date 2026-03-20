@@ -75,9 +75,10 @@ type UpdatePresetRequest struct {
 }
 
 type UpdateConfigRequest struct {
-	DefaultModel     string `json:"default_model" validate:"required"`
-	DefaultPreset    string `json:"default_preset" validate:"required"`
-	RemoveSdhDefault bool   `json:"remove_sdh_default"`
+	DefaultModel        string `json:"default_model" validate:"required"`
+	DefaultPreset       string `json:"default_preset" validate:"required"`
+	RemoveSdhDefault    bool   `json:"remove_sdh_default"`
+	VideoTimeoutMinutes int    `json:"video_timeout_minutes" validate:"required"`
 }
 
 func (r *AddPresetRequest) ToModel() models.TranslationPreset {
@@ -124,8 +125,9 @@ func (r *AddFolderRequest) ToModel() models.FolderConfig {
 
 func (r *UpdateConfigRequest) ToModel() models.UserConfig {
 	return models.UserConfig{
-		DefaultModel:     r.DefaultModel,
-		DefaultPreset:    r.DefaultPreset,
-		RemoveSdhDefault: r.RemoveSdhDefault,
+		DefaultModel:        r.DefaultModel,
+		DefaultPreset:       r.DefaultPreset,
+		RemoveSdhDefault:    r.RemoveSdhDefault,
+		VideoTimeoutMinutes: r.VideoTimeoutMinutes,
 	}
 }

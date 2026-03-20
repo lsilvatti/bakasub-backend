@@ -3,18 +3,20 @@ package routes
 import (
 	"bakasub-backend/internal/handlers"
 	"bakasub-backend/internal/services"
+	"database/sql"
 
 	"github.com/go-chi/chi/v5"
 )
 
-func VideoRoutes() chi.Router {
-
+func VideoRoutes(db *sql.DB) chi.Router {
 	r := chi.NewRouter()
 
 	videoService := services.NewVideoService()
+	configService := services.NewConfigService(db)
 
-	videoHandler := &handlers.VideoHandler{
+	videoHandler := handlers.VideoHandler{
 		Processor: videoService,
+		Config:    configService,
 	}
 
 	r.Get("/get-tracks", videoHandler.GetTrackHandler)

@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 
+	"bakasub-backend/internal/models"
 	"bakasub-backend/internal/services"
 	"bakasub-backend/internal/utils"
 )
@@ -10,11 +11,16 @@ import (
 type VideoProcessor interface {
 	ScanSubtitles(videoPath string) ([]services.SubtitleTrack, error)
 	ExtractSubtitle(videoPath string, subtitleId int) (string, error)
-	MergeSubtitle(videoPath string, srtPath string, langCode string) (string, error)
+	MergeSubtitle(videoPath string, srtPath string, langCode string, timeoutMinutes int) (string, error)
+}
+
+type ConfigProvider interface {
+	GetConfig() (*models.UserConfig, error)
 }
 
 type VideoHandler struct {
 	Processor VideoProcessor
+	Config    ConfigProvider
 }
 
 func (h *VideoHandler) GetTrackHandler(w http.ResponseWriter, r *http.Request) {
@@ -60,7 +66,12 @@ func (h *VideoHandler) MergeTrackHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	outVideoPath, err := h.Processor.MergeSubtitle(reqData.VideoPath, reqData.SrtPath, reqData.LangCode)
+	timeout := 20
+	if cfg, err := h.Config.GetConfig(); err == nil && cfg != nil {
+		timeout = cfg.VideoTimeoutMinutes
+	}
+
+	outVideoPath, err := h.Processor.MergeSubtitle(reqData.VideoPath, reqData.SrtPath, reqData.LangCode, timeout)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Error merging subtitle: "+err.Error())
 		return

@@ -193,8 +193,8 @@ func (s *VideoService) ExtractWithFFmpeg(videoPath string, subtitleId int, subPa
 	return nil
 }
 
-func (s *VideoService) MergeSubtitle(videoPath string, subPath string, langCode string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+func (s *VideoService) MergeSubtitle(videoPath string, subPath string, langCode string, timeoutMinutes int) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutMinutes)*time.Minute)
 	defer cancel()
 
 	dir := filepath.Dir(videoPath)

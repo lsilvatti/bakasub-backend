@@ -11,7 +11,7 @@ import (
 )
 
 type SubtitleTranslator interface {
-	ProcessSubtitleFile(inputPath string, model string, outputPath string, apiKey string, targetLang string, preset string, removeSDH bool) error
+	ProcessSubtitleFile(inputPath string, model string, outputPath string, apiKey string, targetLang string, preset string, removeSDH bool, context string) error
 }
 
 type TranslateHandler struct {
@@ -42,7 +42,7 @@ func (h *TranslateHandler) Translate(w http.ResponseWriter, r *http.Request) {
 	base := strings.TrimSuffix(filepath.Base(inputPath), ext)
 	outputPath := filepath.Join(dir, fmt.Sprintf("%s_%s%s", base, reqData.TargetLang, ext))
 
-	if err := h.Translator.ProcessSubtitleFile(inputPath, reqData.Model, outputPath, apiKey, reqData.TargetLang, reqData.Preset, reqData.RemoveSDH); err != nil {
+	if err := h.Translator.ProcessSubtitleFile(inputPath, reqData.Model, outputPath, apiKey, reqData.TargetLang, reqData.Preset, reqData.RemoveSDH, reqData.Context); err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Processing failed: "+err.Error())
 		return
 	}

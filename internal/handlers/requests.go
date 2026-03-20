@@ -8,6 +8,7 @@ type TranslateRequest struct {
 	Preset     string `json:"preset" validate:"required"`
 	Model      string `json:"model" validate:"required"`
 	RemoveSDH  bool   `json:"removeSDH"`
+	Context    string `json:"context"`
 }
 
 type AddFolderRequest struct {

@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"database/sql"
-	"encoding/json"
 	"net/http"
 
 	"bakasub-backend/internal/models"
@@ -34,14 +33,8 @@ func (h *ConfigHandler) GetUserConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ConfigHandler) UpdateUserConfig(w http.ResponseWriter, r *http.Request) {
-	var config models.UserConfig
-
-	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
-		utils.Error(w, http.StatusBadRequest, "Invalid request payload")
-		return
-	}
-
-	if err := utils.Validate.Struct(config); err != nil {
+	config, err := utils.DecodeAndValidate[models.UserConfig](r)
+	if err != nil {
 		utils.Error(w, http.StatusBadRequest, "Invalid request data: "+err.Error())
 		return
 	}

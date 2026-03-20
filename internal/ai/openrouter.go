@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-
-	"bakasub-backend/internal/models"
 )
 
 type Message struct {
@@ -34,17 +32,15 @@ func NewOpenRouterService() *OpenRouterService {
 
 var httpClient = &http.Client{}
 
-func (s *OpenRouterService) TranslateText(text string, model string, apiKey string, targetLang string, preset string) (string, error) {
+func (s *OpenRouterService) TranslateText(text string, model string, apiKey string, targetLangName string, systemPrompt string) (string, error) {
 	url := "https://openrouter.ai/api/v1/chat/completions"
-
-	languageName := models.Languages[targetLang]
 
 	reqBody := RequestBody{
 		Model: model,
 		Messages: []Message{
 			{
 				Role:    "system",
-				Content: fmt.Sprintf(models.Presets[preset].SystemPrompt+" Traduza para %s.", languageName),
+				Content: fmt.Sprintf("%s Translate input to target language: %s.", systemPrompt, targetLangName),
 			},
 			{
 				Role:    "user",

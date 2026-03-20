@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"bakasub-backend/internal/models"
@@ -18,13 +17,8 @@ type FolderHandler struct {
 }
 
 func (h *FolderHandler) AddFavoriteFolder(w http.ResponseWriter, r *http.Request) {
-	var req AddFolderRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.Error(w, http.StatusBadRequest, "Invalid request payload")
-		return
-	}
-
-	if err := utils.Validate.Struct(req); err != nil {
+	req, err := utils.DecodeAndValidate[AddFolderRequest](r)
+	if err != nil {
 		utils.Error(w, http.StatusBadRequest, "Invalid request data: "+err.Error())
 		return
 	}

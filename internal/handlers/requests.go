@@ -27,3 +27,38 @@ type MergeTrackRequest struct {
 	SrtPath   string `json:"srtPath" validate:"required"`
 	LangCode  string `json:"langCode" validate:"required"`
 }
+
+type AddLanguageRequest struct {
+	Code string `json:"code" validate:"required"`
+	Name string `json:"name" validate:"required"`
+}
+
+type UpdateLanguageRequest struct {
+	Code string `json:"code" validate:"required"`
+	Name string `json:"name" validate:"required"`
+}
+
+type DeleteLanguageRequest struct {
+	Code string `json:"code" validate:"required"`
+}
+
+type DeletePresetRequest struct {
+	ID int `json:"id" validate:"required"`
+}
+
+type AddPresetRequest struct {
+	Alias        string  `json:"alias" validate:"required"`
+	Name         string  `json:"name" validate:"required"`
+	SystemPrompt string  `json:"system_prompt" validate:"required"`
+	BatchSize    int     `json:"batch_size" validate:"required"`
+	Temperature  float64 `json:"temperature" validate:"required"`
+}
+
+type UpdatePresetRequest struct {
+	ID           int     `json:"id"`
+	Alias        string  `json:"alias"`
+	Name         string  `json:"name"`
+	SystemPrompt string  `json:"system_prompt"`
+	BatchSize    int     `json:"batch_size"`
+	Temperature  float64 `json:"temperature"`
+}

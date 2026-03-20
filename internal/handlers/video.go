@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"bakasub-backend/internal/services"
@@ -19,14 +18,9 @@ type VideoHandler struct {
 }
 
 func (h *VideoHandler) GetTrackHandler(w http.ResponseWriter, r *http.Request) {
-	var reqData GetTrackRequest
-	if err := json.NewDecoder(r.Body).Decode(&reqData); err != nil {
-		utils.Error(w, http.StatusBadRequest, "JSON inválido")
-		return
-	}
-
-	if err := utils.Validate.Struct(reqData); err != nil {
-		utils.Error(w, http.StatusBadRequest, "Campos obrigatórios ausentes: "+err.Error())
+	reqData, err := utils.DecodeAndValidate[GetTrackRequest](r)
+	if err != nil {
+		utils.Error(w, http.StatusBadRequest, "Dados inválidos: "+err.Error())
 		return
 	}
 
@@ -42,14 +36,9 @@ func (h *VideoHandler) GetTrackHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *VideoHandler) ExtractTrackHandler(w http.ResponseWriter, r *http.Request) {
-	var reqData ExtractTrackRequest
-	if err := json.NewDecoder(r.Body).Decode(&reqData); err != nil {
-		utils.Error(w, http.StatusBadRequest, "JSON inválido")
-		return
-	}
-
-	if err := utils.Validate.Struct(reqData); err != nil {
-		utils.Error(w, http.StatusBadRequest, "Campos obrigatórios ausentes: "+err.Error())
+	reqData, err := utils.DecodeAndValidate[ExtractTrackRequest](r)
+	if err != nil {
+		utils.Error(w, http.StatusBadRequest, "Dados inválidos: "+err.Error())
 		return
 	}
 
@@ -65,14 +54,9 @@ func (h *VideoHandler) ExtractTrackHandler(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *VideoHandler) MergeTrackHandler(w http.ResponseWriter, r *http.Request) {
-	var reqData MergeTrackRequest
-	if err := json.NewDecoder(r.Body).Decode(&reqData); err != nil {
-		utils.Error(w, http.StatusBadRequest, "JSON inválido")
-		return
-	}
-
-	if err := utils.Validate.Struct(reqData); err != nil {
-		utils.Error(w, http.StatusBadRequest, "Campos obrigatórios ausentes: "+err.Error())
+	reqData, err := utils.DecodeAndValidate[MergeTrackRequest](r)
+	if err != nil {
+		utils.Error(w, http.StatusBadRequest, "Dados inválidos: "+err.Error())
 		return
 	}
 

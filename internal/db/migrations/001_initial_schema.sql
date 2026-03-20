@@ -12,7 +12,9 @@ CREATE TABLE user_config (
     
     video_timeout_minutes INTEGER NOT NULL DEFAULT 20,
     
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    log_retention_days INTEGER NOT NULL DEFAULT 7,
+
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 );
 
 CREATE TABLE favorite_folders (
@@ -22,6 +24,18 @@ CREATE TABLE favorite_folders (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE system_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    level TEXT NOT NULL,       -- INFO, WARN, ERROR
+    module TEXT NOT NULL,      -- 'translate', 'video', 'api'
+    message TEXT NOT NULL,     -- 'Tradução iniciada', 'Falha no FFmpeg'
+    details TEXT,              -- JSON com dados extras (ex: qual arquivo, tentativa n°)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_logs_module ON system_logs(module);
+
 -- +goose Down
 DROP TABLE favorite_folders;
 DROP TABLE user_config;
+DROP TABLE system_logs;

@@ -15,7 +15,7 @@ func APIRoutes(database *sql.DB) chi.Router {
 		w.Write([]byte("OK"))
 	})
 
-	r.Mount("/translate", TranslateRoutes(database))
+	r.Mount("/openrouter", OpenRouterTranslateRoutes(database))
 	r.Mount("/video", VideoRoutes())
 	r.Mount("/config", ConfigRoutes(database))
 	r.Mount("/folders", FoldersRoutes(database))

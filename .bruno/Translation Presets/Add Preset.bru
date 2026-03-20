@@ -1,0 +1,21 @@
+meta {
+  name: Add Preset
+  type: http
+  seq: 2
+}
+
+post {
+  url: http://localhost:8080/api/presets
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "alias": "custom_anime",
+    "name": "Custom Anime Fansub",
+    "system_prompt": "You are a translator. Translate the text. Preserve the '---NEXT---' separator.",
+    "batch_size": 1800,
+    "temperature": 0.7
+  }
+}

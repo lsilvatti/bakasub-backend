@@ -10,7 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func TranslateRoutes(database *sql.DB) chi.Router {
+func OpenRouterTranslateRoutes(database *sql.DB) chi.Router {
 	r := chi.NewRouter()
 
 	openRouterService := ai.NewOpenRouterService()
@@ -22,7 +22,7 @@ func TranslateRoutes(database *sql.DB) chi.Router {
 		Translator: translationService,
 	}
 
-	r.Post("/", translateHandler.Translate)
+	r.Post("/translate", translateHandler.Translate)
 
 	return r
 }

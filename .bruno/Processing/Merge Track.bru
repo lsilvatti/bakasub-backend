@@ -1,0 +1,19 @@
+meta {
+  name: Merge Track
+  type: http
+  seq: 3
+}
+
+post {
+  url: http://localhost:8080/api/video/merge-subtitle
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "videoPath": "/caminho/completo/para/o/video.mkv",
+    "srtPath": "/caminho/completo/para/o/video_2_eng.srt",
+    "langCode": "pt"
+  }
+}

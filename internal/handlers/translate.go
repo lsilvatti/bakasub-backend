@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -25,14 +24,9 @@ func (h *TranslateHandler) Translate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var reqData TranslateRequest
-	if err := json.NewDecoder(r.Body).Decode(&reqData); err != nil {
-		utils.Error(w, http.StatusBadRequest, "JSON inválido")
-		return
-	}
-
-	if err := utils.Validate.Struct(reqData); err != nil {
-		utils.Error(w, http.StatusBadRequest, "Campos obrigatórios ausentes: "+err.Error())
+	reqData, err := utils.DecodeAndValidate[TranslateRequest](r)
+	if err != nil {
+		utils.Error(w, http.StatusBadRequest, "Dados inválidos: "+err.Error())
 		return
 	}
 

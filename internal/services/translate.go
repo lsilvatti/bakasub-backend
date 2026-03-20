@@ -3,6 +3,7 @@ package services
 import (
 	"bakasub-backend/internal/models"
 	"bakasub-backend/internal/parser"
+	"database/sql"
 	"fmt"
 	"regexp"
 	"strings"
@@ -10,7 +11,7 @@ import (
 )
 
 type LLMProvider interface {
-	TranslateText(text string, model string, apiKey string, targetLang string, preset string) (string, error)
+	TranslateText(text string, model string, apiKey string, targetLangName string, systemPrompt string) (string, error)
 }
 
 type TranslationFileSystemProvider interface {
@@ -21,18 +22,33 @@ type TranslationFileSystemProvider interface {
 type TranslatorService struct {
 	LLM LLMProvider
 	FS  TranslationFileSystemProvider
+	DB  *sql.DB
 }
 
-func NewTranslatorService(llm LLMProvider, fs TranslationFileSystemProvider) *TranslatorService {
+func NewTranslatorService(llm LLMProvider, fs TranslationFileSystemProvider, db *sql.DB) *TranslatorService {
 	return &TranslatorService{
 		LLM: llm,
 		FS:  fs,
+		DB:  db,
 	}
 }
 
 var separatorRegex = regexp.MustCompile(`\s*---NEXT---\s*`)
 
-func (s *TranslatorService) ProcessSubtitleFile(inputPath string, model string, outputPath string, apiKey string, targetLang string, preset string, removeSDH bool) error {
+func (s *TranslatorService) ProcessSubtitleFile(inputPath string, model string, outputPath string, apiKey string, targetLangCode string, presetAlias string, removeSDH bool) error {
+
+	var systemPrompt string
+	var maxChars int
+	err := s.DB.QueryRow("SELECT system_prompt, batch_size FROM translation_presets WHERE alias = ?", presetAlias).Scan(&systemPrompt, &maxChars)
+	if err != nil {
+		return fmt.Errorf("erro ao buscar preset '%s' no banco: %w", presetAlias, err)
+	}
+
+	var targetLangName string
+	err = s.DB.QueryRow("SELECT name FROM languages WHERE code = ?", targetLangCode).Scan(&targetLangName)
+	if err != nil {
+		return fmt.Errorf("erro ao buscar idioma '%s' no banco: %w", targetLangCode, err)
+	}
 
 	rawText, err := s.FS.ReadFile(inputPath)
 	if err != nil {
@@ -53,36 +69,45 @@ func (s *TranslatorService) ProcessSubtitleFile(inputPath string, model string, 
 		return fmt.Errorf("nenhuma legenda válida encontrada após filtragem")
 	}
 
-	var wg sync.WaitGroup
-	var mu sync.Mutex
-	var translationErr error
-
-	batchSize := models.Presets[preset].BatchSize
-	if batchSize < 1 {
-		batchSize = 1
-	}
-
-	var limit = make(chan struct{}, 5)
-
 	if apiKey == "" {
 		return fmt.Errorf("apiKey is empty before starting translation")
 	}
 
 	const separator = "\n---NEXT---\n"
+	separatorLen := len(separator)
 
-	for i := 0; i < len(blocks); i += batchSize {
-		end := i + batchSize
+	var batches [][]models.SubtitleBlock
+	var currentBatch []models.SubtitleBlock
+	currentChars := 0
 
-		if end > len(blocks) {
-			end = len(blocks)
+	for _, block := range blocks {
+		blockLen := len(block.Text)
+
+		if currentChars+blockLen > maxChars && len(currentBatch) > 0 {
+			batches = append(batches, currentBatch)
+			currentBatch = nil
+			currentChars = 0
 		}
 
-		currentBatch := blocks[i:end]
+		currentBatch = append(currentBatch, block)
+		currentChars += blockLen + separatorLen
+	}
 
+	if len(currentBatch) > 0 {
+		batches = append(batches, currentBatch)
+	}
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var translationErr error
+
+	var limit = make(chan struct{}, 5)
+
+	for _, batch := range batches {
 		wg.Add(1)
 		limit <- struct{}{}
 
-		go func(batch []models.SubtitleBlock) {
+		go func(currentBatch []models.SubtitleBlock) {
 			defer wg.Done()
 			defer func() { <-limit }()
 
@@ -94,18 +119,18 @@ func (s *TranslatorService) ProcessSubtitleFile(inputPath string, model string, 
 			mu.Unlock()
 
 			var texts []string
-			for _, block := range batch {
+			for _, block := range currentBatch {
 				texts = append(texts, block.Text)
 			}
 
 			joinedText := strings.Join(texts, separator)
 
-			translatedText, err := s.LLM.TranslateText(joinedText, model, apiKey, targetLang, preset)
+			translatedText, err := s.LLM.TranslateText(joinedText, model, apiKey, targetLangName, systemPrompt)
 
 			if err != nil {
 				mu.Lock()
 				if translationErr == nil {
-					translationErr = fmt.Errorf("erro ao traduzir lote %s: %w", batch[0].ID, err)
+					translationErr = fmt.Errorf("erro ao traduzir lote %s: %w", currentBatch[0].ID, err)
 				}
 				mu.Unlock()
 				return
@@ -117,26 +142,27 @@ func (s *TranslatorService) ProcessSubtitleFile(inputPath string, model string, 
 				translatedLines = translatedLines[:len(translatedLines)-1]
 			}
 
-			if len(translatedLines) != len(batch) {
+			if len(translatedLines) != len(currentBatch) {
 				cleanText := separatorRegex.ReplaceAllString(translatedText, "\n\n")
 				fallbackLines := strings.Split(strings.TrimSpace(cleanText), "\n\n")
-				translatedLines = make([]string, len(batch))
+
+				translatedLines = make([]string, len(currentBatch))
 				for idx := range fallbackLines {
-					if idx < len(batch) {
+					if idx < len(currentBatch) {
 						translatedLines[idx] = fallbackLines[idx]
 					}
 				}
 			}
 
 			mu.Lock()
-			for i := range batch {
+			for i := range currentBatch {
 				if i < len(translatedLines) {
-					batch[i].Text = strings.TrimSpace(translatedLines[i])
+					currentBatch[i].Text = strings.TrimSpace(translatedLines[i])
 				}
 			}
 			mu.Unlock()
 
-		}(currentBatch)
+		}(batch)
 	}
 
 	wg.Wait()

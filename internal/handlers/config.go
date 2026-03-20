@@ -33,13 +33,13 @@ func (h *ConfigHandler) GetUserConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ConfigHandler) UpdateUserConfig(w http.ResponseWriter, r *http.Request) {
-	config, err := utils.DecodeAndValidate[models.UserConfig](r)
+	reqData, err := utils.DecodeAndValidate[UpdateConfigRequest](r)
 	if err != nil {
 		utils.Error(w, http.StatusBadRequest, "Invalid request data: "+err.Error())
 		return
 	}
 
-	if err := h.Service.UpdateConfig(config); err != nil {
+	if err := h.Service.UpdateConfig(reqData.ToModel()); err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Failed to update user config: "+err.Error())
 		return
 	}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 )
 
 type Message struct {
@@ -30,7 +31,9 @@ func NewOpenRouterService() *OpenRouterService {
 	return &OpenRouterService{}
 }
 
-var httpClient = &http.Client{}
+var httpClient = &http.Client{
+	Timeout: 60 * time.Second,
+}
 
 func (s *OpenRouterService) TranslateText(text string, model string, apiKey string, targetLangName string, systemPrompt string) (string, error) {
 	url := "https://openrouter.ai/api/v1/chat/completions"
@@ -84,7 +87,7 @@ func (s *OpenRouterService) TranslateText(text string, model string, apiKey stri
 
 	if len(resBody.Choices) == 0 || resBody.Choices[0].Message.Content == "" {
 		fmt.Printf("--- ALERTA: Resposta Vazia da IA ---\nBody Completo: %s\n-------------------\n", string(bodyBytes))
-		return "", fmt.Errorf("nenhuma tradução encontrada (possível filtro de conteúdo)")
+		return "", fmt.Errorf("no translation found (possible content filter)")
 	}
 
 	return resBody.Choices[0].Message.Content, nil

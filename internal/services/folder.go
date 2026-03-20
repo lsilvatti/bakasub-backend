@@ -24,9 +24,9 @@ func NewFolderService(db *sql.DB, fs FolderFileSystemProvider) *FolderService {
 	}
 }
 
-func (s *FolderService) AddFolder(alias, path string) error {
+func (s *FolderService) AddFolder(folder models.FolderConfig) error {
 	query := "INSERT INTO favorite_folders (alias, path) VALUES (?, ?)"
-	_, err := s.DB.Exec(query, alias, path)
+	_, err := s.DB.Exec(query, folder.Alias, folder.Path)
 	return err
 }
 

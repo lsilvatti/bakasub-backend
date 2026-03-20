@@ -21,7 +21,7 @@ func (s *ConfigService) GetConfig() (models.UserConfig, error) {
 	err := row.Scan(&config.DefaultModel, &config.DefaultPreset, &config.RemoveSdhDefault)
 
 	if err != nil {
-		return config, err // Retornamos o erro para o handler tratar (ex: ErrNoRows)
+		return config, err
 	}
 
 	return config, nil

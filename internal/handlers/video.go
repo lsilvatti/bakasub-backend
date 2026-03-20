@@ -20,17 +20,17 @@ type VideoHandler struct {
 func (h *VideoHandler) GetTrackHandler(w http.ResponseWriter, r *http.Request) {
 	reqData, err := utils.DecodeAndValidate[GetTrackRequest](r)
 	if err != nil {
-		utils.Error(w, http.StatusBadRequest, "Dados inválidos: "+err.Error())
+		utils.Error(w, http.StatusBadRequest, "Invalid data: "+err.Error())
 		return
 	}
 
 	tracks, err := h.Processor.ScanSubtitles(reqData.VideoPath)
 	if err != nil {
-		utils.Error(w, http.StatusInternalServerError, "Erro ao mapear arquivo: "+err.Error())
+		utils.Error(w, http.StatusInternalServerError, "Error mapping file: "+err.Error())
 		return
 	}
 
-	utils.JSON(w, http.StatusOK, "success", "Trilhas lidas com sucesso", map[string]interface{}{
+	utils.JSON(w, http.StatusOK, "success", "Tracks read successfully", map[string]interface{}{
 		"tracks": tracks,
 	})
 }
@@ -38,17 +38,17 @@ func (h *VideoHandler) GetTrackHandler(w http.ResponseWriter, r *http.Request) {
 func (h *VideoHandler) ExtractTrackHandler(w http.ResponseWriter, r *http.Request) {
 	reqData, err := utils.DecodeAndValidate[ExtractTrackRequest](r)
 	if err != nil {
-		utils.Error(w, http.StatusBadRequest, "Dados inválidos: "+err.Error())
+		utils.Error(w, http.StatusBadRequest, "Invalid data: "+err.Error())
 		return
 	}
 
 	srtPath, err := h.Processor.ExtractSubtitle(reqData.VideoPath, reqData.SubtitleId)
 	if err != nil {
-		utils.Error(w, http.StatusInternalServerError, "Erro ao extrair legenda: "+err.Error())
+		utils.Error(w, http.StatusInternalServerError, "Error extracting subtitle: "+err.Error())
 		return
 	}
 
-	utils.JSON(w, http.StatusOK, "success", "Legenda extraída com sucesso", map[string]interface{}{
+	utils.JSON(w, http.StatusOK, "success", "Subtitle extracted successfully", map[string]interface{}{
 		"srtPath": srtPath,
 	})
 }
@@ -56,17 +56,17 @@ func (h *VideoHandler) ExtractTrackHandler(w http.ResponseWriter, r *http.Reques
 func (h *VideoHandler) MergeTrackHandler(w http.ResponseWriter, r *http.Request) {
 	reqData, err := utils.DecodeAndValidate[MergeTrackRequest](r)
 	if err != nil {
-		utils.Error(w, http.StatusBadRequest, "Dados inválidos: "+err.Error())
+		utils.Error(w, http.StatusBadRequest, "Invalid data: "+err.Error())
 		return
 	}
 
 	outVideoPath, err := h.Processor.MergeSubtitle(reqData.VideoPath, reqData.SrtPath, reqData.LangCode)
 	if err != nil {
-		utils.Error(w, http.StatusInternalServerError, "Erro ao mesclar legenda: "+err.Error())
+		utils.Error(w, http.StatusInternalServerError, "Error merging subtitle: "+err.Error())
 		return
 	}
 
-	utils.JSON(w, http.StatusOK, "success", "Vídeo gerado com sucesso", map[string]interface{}{
+	utils.JSON(w, http.StatusOK, "success", "Video generated successfully", map[string]interface{}{
 		"outVideoPath": outVideoPath,
 	})
 }

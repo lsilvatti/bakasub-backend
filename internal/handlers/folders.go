@@ -8,7 +8,7 @@ import (
 )
 
 type FolderProcessor interface {
-	AddFolder(alias, path string) error
+	AddFolder(folder models.FolderConfig) error
 	GetFolders() ([]models.FolderConfig, error)
 }
 
@@ -23,7 +23,7 @@ func (h *FolderHandler) AddFavoriteFolder(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if err := h.Service.AddFolder(req.Alias, req.Path); err != nil {
+	if err := h.Service.AddFolder(req.ToModel()); err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Failed to add favorite folder: "+err.Error())
 		return
 	}

@@ -10,8 +10,8 @@ import (
 type LanguageService interface {
 	GetLanguages() ([]models.Language, error)
 	GetLanguageByCode(code string) (*models.Language, error)
-	AddLanguage(code string, name string) error
-	UpdateLanguage(code string, name string) error
+	AddLanguage(lang models.Language) error
+	UpdateLanguage(lang models.Language) error
 	DeleteLanguage(code string) error
 }
 
@@ -22,11 +22,11 @@ type LanguageHandler struct {
 func (h *LanguageHandler) GetLanguagesHandler(w http.ResponseWriter, r *http.Request) {
 	languages, err := h.Service.GetLanguages()
 	if err != nil {
-		utils.Error(w, http.StatusInternalServerError, "Erro ao buscar idiomas: "+err.Error())
+		utils.Error(w, http.StatusInternalServerError, "Error fetching languages: "+err.Error())
 		return
 	}
 
-	utils.JSON(w, http.StatusOK, "success", "Idiomas listados com sucesso", map[string]interface{}{
+	utils.JSON(w, http.StatusOK, "success", "Languages listed successfully", map[string]interface{}{
 		"languages": languages,
 	})
 }
@@ -34,47 +34,47 @@ func (h *LanguageHandler) GetLanguagesHandler(w http.ResponseWriter, r *http.Req
 func (h *LanguageHandler) AddLanguageHandler(w http.ResponseWriter, r *http.Request) {
 	reqData, err := utils.DecodeAndValidate[AddLanguageRequest](r)
 	if err != nil {
-		utils.Error(w, http.StatusBadRequest, "Campos inválidos: "+err.Error())
+		utils.Error(w, http.StatusBadRequest, "Invalid fields: "+err.Error())
 		return
 	}
 
-	err = h.Service.AddLanguage(reqData.Code, reqData.Name)
+	err = h.Service.AddLanguage(reqData.ToModel())
 	if err != nil {
-		utils.Error(w, http.StatusInternalServerError, "Erro ao adicionar idioma: "+err.Error())
+		utils.Error(w, http.StatusInternalServerError, "Error adding language: "+err.Error())
 		return
 	}
 
-	utils.JSON(w, http.StatusOK, "success", "Idioma adicionado com sucesso", nil)
+	utils.JSON(w, http.StatusOK, "success", "Language added successfully", nil)
 }
 
 func (h *LanguageHandler) UpdateLanguageHandler(w http.ResponseWriter, r *http.Request) {
 	reqData, err := utils.DecodeAndValidate[UpdateLanguageRequest](r)
 	if err != nil {
-		utils.Error(w, http.StatusBadRequest, "Campos inválidos: "+err.Error())
+		utils.Error(w, http.StatusBadRequest, "Invalid fields: "+err.Error())
 		return
 	}
 
-	err = h.Service.UpdateLanguage(reqData.Code, reqData.Name)
+	err = h.Service.UpdateLanguage(reqData.ToModel())
 	if err != nil {
-		utils.Error(w, http.StatusInternalServerError, "Erro ao atualizar idioma: "+err.Error())
+		utils.Error(w, http.StatusInternalServerError, "Error updating language: "+err.Error())
 		return
 	}
 
-	utils.JSON(w, http.StatusOK, "success", "Idioma atualizado com sucesso", nil)
+	utils.JSON(w, http.StatusOK, "success", "Language updated successfully", nil)
 }
 
 func (h *LanguageHandler) DeleteLanguageHandler(w http.ResponseWriter, r *http.Request) {
 	reqData, err := utils.DecodeAndValidate[DeleteLanguageRequest](r)
 	if err != nil {
-		utils.Error(w, http.StatusBadRequest, "Campos inválidos: "+err.Error())
+		utils.Error(w, http.StatusBadRequest, "Invalid fields: "+err.Error())
 		return
 	}
 
 	err = h.Service.DeleteLanguage(reqData.Code)
 	if err != nil {
-		utils.Error(w, http.StatusInternalServerError, "Erro ao deletar idioma: "+err.Error())
+		utils.Error(w, http.StatusInternalServerError, "Error deleting language: "+err.Error())
 		return
 	}
 
-	utils.JSON(w, http.StatusOK, "success", "Idioma deletado com sucesso", nil)
+	utils.JSON(w, http.StatusOK, "success", "Language deleted successfully", nil)
 }

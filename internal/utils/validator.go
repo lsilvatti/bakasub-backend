@@ -20,7 +20,7 @@ func DecodeAndValidate[T any](r *http.Request) (T, error) {
 	var body T
 
 	if r.Body == nil {
-		return body, errors.New("o corpo da requisição está vazio")
+		return body, errors.New("request body is empty")
 	}
 	defer r.Body.Close()
 
@@ -28,7 +28,7 @@ func DecodeAndValidate[T any](r *http.Request) (T, error) {
 	decoder.DisallowUnknownFields()
 
 	if err := decoder.Decode(&body); err != nil {
-		return body, fmt.Errorf("formato JSON inválido: %v", err)
+		return body, fmt.Errorf("invalid JSON format: %v", err)
 	}
 
 	if err := Validate.Struct(body); err != nil {
@@ -47,15 +47,15 @@ func FormatValidationErrors(err error) []ValidationError {
 			var msg string
 			switch e.Tag() {
 			case "required":
-				msg = "Este campo é obrigatório"
+				msg = "This field is required"
 			case "email":
-				msg = "Formato de e-mail inválido"
+				msg = "Invalid email format"
 			case "min":
-				msg = fmt.Sprintf("O valor deve ser no mínimo %s", e.Param())
+				msg = fmt.Sprintf("Value must be at least %s", e.Param())
 			case "max":
-				msg = fmt.Sprintf("O valor deve ser no máximo %s", e.Param())
+				msg = fmt.Sprintf("Value must be at most %s", e.Param())
 			default:
-				msg = fmt.Sprintf("Falha na validação: %s", e.Tag())
+				msg = fmt.Sprintf("Validation failed: %s", e.Tag())
 			}
 
 			errs = append(errs, ValidationError{

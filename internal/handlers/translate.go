@@ -20,19 +20,19 @@ type TranslateHandler struct {
 
 func (h *TranslateHandler) Translate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		utils.Error(w, http.StatusMethodNotAllowed, "Método não permitido")
+		utils.Error(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
 
 	reqData, err := utils.DecodeAndValidate[TranslateRequest](r)
 	if err != nil {
-		utils.Error(w, http.StatusBadRequest, "Dados inválidos: "+err.Error())
+		utils.Error(w, http.StatusBadRequest, "Invalid data: "+err.Error())
 		return
 	}
 
 	apiKey := os.Getenv("OPENROUTER_API_KEY")
 	if apiKey == "" {
-		utils.Error(w, http.StatusInternalServerError, "Configuração de API ausente")
+		utils.Error(w, http.StatusInternalServerError, "Missing API configuration")
 		return
 	}
 
@@ -43,11 +43,11 @@ func (h *TranslateHandler) Translate(w http.ResponseWriter, r *http.Request) {
 	outputPath := filepath.Join(dir, fmt.Sprintf("%s_%s%s", base, reqData.TargetLang, ext))
 
 	if err := h.Translator.ProcessSubtitleFile(inputPath, reqData.Model, outputPath, apiKey, reqData.TargetLang, reqData.Preset, reqData.RemoveSDH); err != nil {
-		utils.Error(w, http.StatusInternalServerError, "Falha no processamento: "+err.Error())
+		utils.Error(w, http.StatusInternalServerError, "Processing failed: "+err.Error())
 		return
 	}
 
-	utils.JSON(w, http.StatusOK, "success", "Tradução concluída", map[string]string{
+	utils.JSON(w, http.StatusOK, "success", "Translation completed", map[string]string{
 		"output_path": outputPath,
 	})
 }

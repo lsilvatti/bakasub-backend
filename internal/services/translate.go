@@ -41,24 +41,24 @@ func (s *TranslatorService) ProcessSubtitleFile(inputPath string, model string, 
 	var maxChars int
 	err := s.DB.QueryRow("SELECT system_prompt, batch_size FROM translation_presets WHERE alias = ?", presetAlias).Scan(&systemPrompt, &maxChars)
 	if err != nil {
-		return fmt.Errorf("erro ao buscar preset '%s' no banco: %w", presetAlias, err)
+		return fmt.Errorf("error fetching preset '%s' from database: %w", presetAlias, err)
 	}
 
 	var targetLangName string
 	err = s.DB.QueryRow("SELECT name FROM languages WHERE code = ?", targetLangCode).Scan(&targetLangName)
 	if err != nil {
-		return fmt.Errorf("erro ao buscar idioma '%s' no banco: %w", targetLangCode, err)
+		return fmt.Errorf("error fetching language '%s' from database: %w", targetLangCode, err)
 	}
 
 	rawText, err := s.FS.ReadFile(inputPath)
 	if err != nil {
-		return fmt.Errorf("erro ao ler arquivo: %w", err)
+		return fmt.Errorf("error reading file: %w", err)
 	}
 
 	blocks := parser.ParseToBlocks(rawText)
 
 	if len(blocks) == 0 {
-		return fmt.Errorf("nenhuma legenda encontrada")
+		return fmt.Errorf("no subtitle found")
 	}
 
 	if removeSDH {
@@ -66,7 +66,7 @@ func (s *TranslatorService) ProcessSubtitleFile(inputPath string, model string, 
 	}
 
 	if len(blocks) == 0 {
-		return fmt.Errorf("nenhuma legenda válida encontrada após filtragem")
+		return fmt.Errorf("no valid subtitle found after filtering")
 	}
 
 	if apiKey == "" {
@@ -130,7 +130,7 @@ func (s *TranslatorService) ProcessSubtitleFile(inputPath string, model string, 
 			if err != nil {
 				mu.Lock()
 				if translationErr == nil {
-					translationErr = fmt.Errorf("erro ao traduzir lote %s: %w", currentBatch[0].ID, err)
+					translationErr = fmt.Errorf("error translating batch %s: %w", currentBatch[0].ID, err)
 				}
 				mu.Unlock()
 				return
@@ -174,7 +174,7 @@ func (s *TranslatorService) ProcessSubtitleFile(inputPath string, model string, 
 	outputText := parser.BuildString(blocks)
 
 	if err := s.FS.SaveFile(outputPath, outputText); err != nil {
-		return fmt.Errorf("erro ao escrever arquivo: %w", err)
+		return fmt.Errorf("error writing file: %w", err)
 	}
 
 	return nil

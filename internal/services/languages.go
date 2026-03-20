@@ -40,13 +40,13 @@ func (s *LanguageService) GetLanguageByCode(code string) (*models.Language, erro
 	return &lang, nil
 }
 
-func (s *LanguageService) AddLanguage(code string, name string) error {
-	_, err := s.DB.Exec("INSERT INTO languages (code, name) VALUES (?, ?)", code, name)
+func (s *LanguageService) AddLanguage(lang models.Language) error {
+	_, err := s.DB.Exec("INSERT INTO languages (code, name) VALUES (?, ?)", lang.Code, lang.Name)
 	return err
 }
 
-func (s *LanguageService) UpdateLanguage(code string, name string) error {
-	_, err := s.DB.Exec("UPDATE languages SET name = ? WHERE code = ?", name, code)
+func (s *LanguageService) UpdateLanguage(lang models.Language) error {
+	_, err := s.DB.Exec("UPDATE languages SET name = ? WHERE code = ?", lang.Name, lang.Code)
 	return err
 }
 

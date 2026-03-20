@@ -38,15 +38,7 @@ func (h *PresetHandler) CreatePresetHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	presetModel := models.TranslationPreset{
-		Alias:        reqData.Alias,
-		Name:         reqData.Name,
-		SystemPrompt: reqData.SystemPrompt,
-		BatchSize:    reqData.BatchSize,
-		Temperature:  reqData.Temperature,
-	}
-
-	if err := h.Service.CreatePreset(presetModel); err != nil {
+	if err := h.Service.CreatePreset(reqData.ToModel()); err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Failed to create preset: "+err.Error())
 		return
 	}
@@ -61,15 +53,7 @@ func (h *PresetHandler) UpdatePresetHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	presetModel := models.TranslationPreset{
-		ID:           reqData.ID,
-		Alias:        reqData.Alias,
-		Name:         reqData.Name,
-		SystemPrompt: reqData.SystemPrompt,
-		BatchSize:    reqData.BatchSize,
-		Temperature:  reqData.Temperature,
-	}
-
+	presetModel := reqData.ToModel()
 	if err := h.Service.UpdatePreset(presetModel); err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Failed to update preset: "+err.Error())
 		return

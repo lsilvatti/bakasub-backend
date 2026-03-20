@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
@@ -45,11 +49,33 @@ func main() {
 
 	r.Mount("/api", routes.APIRoutes(database))
 
-	porta := ":8080"
-	fmt.Printf("Server initialized successfully!\n")
-	fmt.Printf("Listening for requests at http://localhost%s\n", porta)
+	port := ":8080"
 
-	if err := http.ListenAndServe(porta, r); err != nil {
-		log.Fatalf("Error starting server: %v", err)
+	srv := &http.Server{
+		Addr:    port,
+		Handler: r,
 	}
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
+
+	go func() {
+		fmt.Printf("Server initialized successfully!\n")
+		fmt.Printf("Listening for requests at http://localhost%s\n", port)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Error starting server: %v", err)
+		}
+	}()
+
+	sig := <-stop
+	fmt.Printf("\nSignal received (%v). Initiating graceful shutdown...\n", sig)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatalf("Error during server shutdown: %v", err)
+	}
+
+	fmt.Println("Server successfully shut down.")
 }

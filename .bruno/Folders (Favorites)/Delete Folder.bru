@@ -1,10 +1,10 @@
 meta {
-  name: Add Folder
+  name: Delete Folder
   type: http
-  seq: 2
+  seq: 3
 }
 
-post {
+delete {
   url: http://localhost:8080/api/folders
   body: json
   auth: none
@@ -12,7 +12,6 @@ post {
 
 body:json {
   {
-    "alias": "Downloads",
-    "path": "/home/lsilvatti/Code/Bakasub/jojo.mkv"
+    "id": 1
   }
 }

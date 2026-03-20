@@ -17,7 +17,7 @@ func VideoRoutes() chi.Router {
 		Processor: videoService,
 	}
 
-	r.Post("/get-tracks", videoHandler.GetTrackHandler)
+	r.Get("/get-tracks", videoHandler.GetTrackHandler)
 	r.Post("/extract-track", videoHandler.ExtractTrackHandler)
 	r.Post("/merge-subtitle", videoHandler.MergeTrackHandler)
 

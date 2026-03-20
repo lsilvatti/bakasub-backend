@@ -18,13 +18,13 @@ type VideoHandler struct {
 }
 
 func (h *VideoHandler) GetTrackHandler(w http.ResponseWriter, r *http.Request) {
-	reqData, err := utils.DecodeAndValidate[GetTrackRequest](r)
-	if err != nil {
-		utils.Error(w, http.StatusBadRequest, "Invalid data: "+err.Error())
+	path := r.URL.Query().Get("path")
+	if path == "" {
+		utils.Error(w, http.StatusBadRequest, "Missing 'path' query parameter")
 		return
 	}
 
-	tracks, err := h.Processor.ScanSubtitles(reqData.VideoPath)
+	tracks, err := h.Processor.ScanSubtitles(path)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Error mapping file: "+err.Error())
 		return

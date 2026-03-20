@@ -4,14 +4,18 @@ meta {
   seq: 1
 }
 
-post {
-  url: http://localhost:8080/api/video/get-tracks
-  body: json
+get {
+  url: http://localhost:8080/api/video/get-tracks?path=/home/lsilvatti/Code/Bakasub/jojo.mkv
+  body: none
   auth: none
+}
+
+params:query {
+  path: /home/lsilvatti/Code/Bakasub/jojo.mkv
 }
 
 body:json {
   {
-    "videoPath": "/caminho/completo/para/o/video.mkv"
+    "videoPath": ""
   }
 }

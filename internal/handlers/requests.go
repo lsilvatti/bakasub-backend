@@ -15,6 +15,14 @@ type AddFolderRequest struct {
 	Path  string `json:"path" validate:"required"`
 }
 
+type ListFilesRequest struct {
+	Path string `json:"path" validate:"required"`
+}
+
+type RemoveFolderRequest struct {
+	ID int `json:"id" validate:"required"`
+}
+
 type GetTrackRequest struct {
 	VideoPath string `json:"videoPath" validate:"required"`
 }

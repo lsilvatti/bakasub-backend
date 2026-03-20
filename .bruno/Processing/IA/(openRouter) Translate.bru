@@ -1,0 +1,20 @@
+meta {
+  name: (openRouter) Translate
+  type: http
+  seq: 1
+}
+
+post {
+  url: http://localhost:8080/api/openrouter/translate
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "filePath": "/home/lsilvatti/Code/Bakasub/jojo_2_eng.srt",
+    "targetLang": "pt",
+    "preset": "anime",
+    "model": "google/gemini-2.5-flash-lite-preview-09-2025"
+  }
+}

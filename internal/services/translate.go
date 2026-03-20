@@ -5,6 +5,7 @@ import (
 	"bakasub-backend/internal/parser"
 	"database/sql"
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -55,13 +56,24 @@ func (s *TranslatorService) ProcessSubtitleFile(inputPath string, model string, 
 		return fmt.Errorf("error reading file: %w", err)
 	}
 
-	blocks := parser.ParseToBlocks(rawText)
+	ext := strings.ToLower(filepath.Ext(inputPath))
+	var blocks []models.SubtitleBlock
+	var assDoc *parser.ASSDocument
+	var vttHeader string
 
-	if len(blocks) == 0 {
-		return fmt.Errorf("no subtitle found")
+	if ext == ".ass" || ext == ".ssa" {
+		assDoc, blocks = parser.ParseASS(rawText)
+	} else if ext == ".vtt" {
+		vttHeader, blocks = parser.ParseVTT(rawText)
+	} else {
+		blocks = parser.ParseToBlocks(rawText) // Default: SRT
 	}
 
-	if removeSDH {
+	if len(blocks) == 0 {
+		return fmt.Errorf("no subtitle found (or all lines were protected by heuristics)")
+	}
+
+	if removeSDH && ext != ".ass" {
 		blocks = parser.RemoveSDH(blocks)
 	}
 
@@ -171,7 +183,14 @@ func (s *TranslatorService) ProcessSubtitleFile(inputPath string, model string, 
 		return translationErr
 	}
 
-	outputText := parser.BuildString(blocks)
+	var outputText string
+	if ext == ".ass" || ext == ".ssa" {
+		outputText = parser.BuildASS(assDoc, blocks)
+	} else if ext == ".vtt" {
+		outputText = parser.BuildVTT(vttHeader, blocks)
+	} else {
+		outputText = parser.BuildString(blocks) // Default: SRT
+	}
 
 	if err := s.FS.SaveFile(outputPath, outputText); err != nil {
 		return fmt.Errorf("error writing file: %w", err)

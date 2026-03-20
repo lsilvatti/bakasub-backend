@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -101,10 +102,12 @@ func (s *VideoService) ExtractSubtitle(videoPath string, subtitleId int) (string
 	}
 
 	lang := "und"
+	codec := ""
 	trackFound := false
 	for _, t := range tracks {
 		if t.ID == subtitleId {
 			lang = t.Language
+			codec = t.Codec
 			trackFound = true
 			break
 		}
@@ -119,29 +122,50 @@ func (s *VideoService) ExtractSubtitle(videoPath string, subtitleId int) (string
 	ext := filepath.Ext(base)
 	nameWithoutExt := strings.TrimSuffix(base, ext)
 
-	srtFilename := fmt.Sprintf("%s_%d_%s.srt", nameWithoutExt, subtitleId, lang)
-	srtPath := filepath.Join(dir, srtFilename)
+	// Palpite inicial baseado no Codec
+	outExt := ".srt"
+	upperCodec := strings.ToUpper(codec)
+	if strings.Contains(upperCodec, "ASS") || strings.Contains(upperCodec, "SSA") {
+		outExt = ".ass"
+	}
+
+	subFilename := fmt.Sprintf("%s_%d_%s%s", nameWithoutExt, subtitleId, lang, outExt)
+	subPath := filepath.Join(dir, subFilename)
 
 	fileExt := strings.ToLower(ext)
 
 	if fileExt == ".mkv" {
-		err = s.ExtractWithMKVToolnix(videoPath, subtitleId, srtPath)
+		err = s.ExtractWithMKVToolnix(videoPath, subtitleId, subPath)
 	} else {
-		err = s.ExtractWithFFmpeg(videoPath, subtitleId, srtPath)
+		err = s.ExtractWithFFmpeg(videoPath, subtitleId, subPath)
 	}
 
 	if err != nil {
 		return "", err
 	}
 
-	return srtPath, nil
+	content, errRead := os.ReadFile(subPath)
+	if errRead == nil && len(content) > 0 {
+		header := string(content)
+		if len(header) > 100 {
+			header = header[:100]
+		}
+
+		if strings.Contains(header, "[Script Info]") && strings.HasSuffix(subPath, ".srt") {
+			newPath := strings.TrimSuffix(subPath, ".srt") + ".ass"
+			os.Rename(subPath, newPath)
+			subPath = newPath
+		}
+	}
+
+	return subPath, nil
 }
 
-func (s *VideoService) ExtractWithMKVToolnix(videoPath string, subtitleId int, srtPath string) error {
+func (s *VideoService) ExtractWithMKVToolnix(videoPath string, subtitleId int, subPath string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
-	extractCmd := exec.CommandContext(ctx, "mkvextract", videoPath, "tracks", fmt.Sprintf("%d:%s", subtitleId, srtPath))
+	extractCmd := exec.CommandContext(ctx, "mkvextract", videoPath, "tracks", fmt.Sprintf("%d:%s", subtitleId, subPath))
 	output, err := extractCmd.CombinedOutput()
 
 	if ctx.Err() == context.DeadlineExceeded {
@@ -153,11 +177,11 @@ func (s *VideoService) ExtractWithMKVToolnix(videoPath string, subtitleId int, s
 	return nil
 }
 
-func (s *VideoService) ExtractWithFFmpeg(videoPath string, subtitleId int, srtPath string) error {
+func (s *VideoService) ExtractWithFFmpeg(videoPath string, subtitleId int, subPath string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
-	extractCmd := exec.CommandContext(ctx, "ffmpeg", "-y", "-i", videoPath, "-map", fmt.Sprintf("0:%d", subtitleId), srtPath)
+	extractCmd := exec.CommandContext(ctx, "ffmpeg", "-y", "-i", videoPath, "-map", fmt.Sprintf("0:%d", subtitleId), subPath)
 	output, err := extractCmd.CombinedOutput()
 
 	if ctx.Err() == context.DeadlineExceeded {
@@ -169,7 +193,7 @@ func (s *VideoService) ExtractWithFFmpeg(videoPath string, subtitleId int, srtPa
 	return nil
 }
 
-func (s *VideoService) MergeSubtitle(videoPath string, srtPath string, langCode string) (string, error) {
+func (s *VideoService) MergeSubtitle(videoPath string, subPath string, langCode string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	defer cancel()
 
@@ -187,7 +211,7 @@ func (s *VideoService) MergeSubtitle(videoPath string, srtPath string, langCode 
 		"--language", "0:"+langCode,
 		"--track-name", "0:BakaSub AI",
 		"--default-track-flag", "0:yes",
-		srtPath,
+		subPath,
 	)
 
 	output, err := cmd.CombinedOutput()

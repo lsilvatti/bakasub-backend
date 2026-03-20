@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: https://github.com/lsilvatti/bakasub-backend.git#main
+    container_name: bakasub_backend
+    ports:
+      - "8080:8080"
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+    volumes:
+      - bakasub_db:/app/data
+      - ${VIDEO_DIR:-./videos}:/videos
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: https://github.com/lsilvatti/bakasub-frontend.git#main
+    container_name: bakasub_frontend
+    ports:
+      - "3000:80" 
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  bakasub_db:

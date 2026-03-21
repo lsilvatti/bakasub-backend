@@ -2,6 +2,7 @@ package services
 
 import (
 	"bakasub-backend/internal/models"
+	"bakasub-backend/internal/utils"
 	"database/sql"
 )
 
@@ -21,6 +22,11 @@ func (s *ConfigService) GetConfig() (*models.UserConfig, error) {
 	err := row.Scan(&config.DefaultModel, &config.DefaultPreset, &config.RemoveSdhDefault, &config.VideoTimeoutMinutes, &config.LogRetentionDays)
 
 	if err != nil {
+		if err != sql.ErrNoRows {
+			utils.LogError("config", "Failed to fetch user configuration", map[string]any{
+				"error": err.Error(),
+			})
+		}
 		return nil, err
 	}
 
@@ -29,15 +35,28 @@ func (s *ConfigService) GetConfig() (*models.UserConfig, error) {
 
 func (s *ConfigService) UpdateConfig(config models.UserConfig) error {
 	query := `
-    INSERT INTO user_configs (id, default_model, default_preset, remove_sdh_default, video_timeout_minutes, log_retention_days)
-    VALUES (1, ?, ?, ?, ?, ?)
-    ON CONFLICT(id) DO UPDATE SET
-        default_model=excluded.default_model,
-        default_preset=excluded.default_preset,
-        remove_sdh_default=excluded.remove_sdh_default,
-        video_timeout_minutes=excluded.video_timeout_minutes,
-        log_retention_days=excluded.log_retention_days;
-    `
+	INSERT INTO user_configs (id, default_model, default_preset, remove_sdh_default, video_timeout_minutes, log_retention_days)
+	VALUES (1, ?, ?, ?, ?, ?)
+	ON CONFLICT(id) DO UPDATE SET
+		default_model=excluded.default_model,
+		default_preset=excluded.default_preset,
+		remove_sdh_default=excluded.remove_sdh_default,
+		video_timeout_minutes=excluded.video_timeout_minutes,
+		log_retention_days=excluded.log_retention_days;
+	`
 	_, err := s.DB.Exec(query, config.DefaultModel, config.DefaultPreset, config.RemoveSdhDefault, config.VideoTimeoutMinutes, config.LogRetentionDays)
-	return err
+
+	if err != nil {
+		utils.LogError("config", "Failed to update user configuration", map[string]any{
+			"error": err.Error(),
+		})
+		return err
+	}
+
+	utils.LogInfo("config", "update", "User configuration updated successfully", map[string]any{
+		"model":  config.DefaultModel,
+		"preset": config.DefaultPreset,
+	})
+
+	return nil
 }

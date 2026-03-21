@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -26,19 +25,21 @@ func main() {
 	}
 
 	if os.Getenv("OPENROUTER_API_KEY") == "" {
-		log.Fatal("FATAL ERROR: OPENROUTER_API_KEY is not set.")
+		fmt.Println("FATAL ERROR: OPENROUTER_API_KEY environment variable is not set.")
+		os.Exit(1)
 	}
 
 	database, err := db.InitDB("bakasub.db")
-
 	if err != nil {
-		log.Fatalf("Error initializing database: %v", err)
+		fmt.Printf("FATAL ERROR: Error initializing database: %v\n", err)
+		os.Exit(1)
 	}
 	defer database.Close()
 
 	utils.InitLogger(database)
 
 	utils.InitSSEBroker()
+	go utils.AutoPruneLogs()
 
 	r := chi.NewRouter()
 
@@ -64,22 +65,30 @@ func main() {
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
 
 	go func() {
-		fmt.Printf("Server initialized successfully!\n")
-		fmt.Printf("Listening for requests at http://localhost%s\n", port)
+		utils.LogInfo("system", "success", "Server initialized successfully", map[string]any{
+			"url": fmt.Sprintf("http://localhost%s", port),
+		})
+
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Error starting server: %v", err)
+			utils.LogError("system", "Critical error starting server", map[string]any{
+				"port":  port,
+				"error": err.Error(),
+			})
+			os.Exit(1)
 		}
 	}()
 
 	sig := <-stop
-	fmt.Printf("\nSignal received (%v). Initiating graceful shutdown...\n", sig)
+	utils.LogInfo("system", "success", "Signal received. Initiating graceful shutdown...", map[string]any{"signal": sig.String()})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatalf("Error during server shutdown: %v", err)
+		utils.LogError("system", "Error during server shutdown", map[string]any{
+			"error": err.Error(),
+		})
 	}
 
-	fmt.Println("Server successfully shut down.")
+	utils.LogInfo("system", "success", "Server shutdown completed successfully", nil)
 }

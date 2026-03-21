@@ -26,8 +26,7 @@ func processLogs() {
 				}
 			}
 
-			// Correção: Alterado de 'logs' para 'system_logs' para bater com a migration
-			_, _ = dbConn.Exec("INSERT INTO system_logs (level, module, message, details) VALUES ($1, $2, $3, $4)", entry.Level, entry.Module, entry.Message, detailsJSON)
+			_, _ = dbConn.Exec("INSERT INTO system_logs (level, event_type, module, message, details) VALUES ($1, $2, $3, $4, $5)", entry.Level, entry.EventType, entry.Module, entry.Message, detailsJSON)
 		}
 	}
 }
@@ -42,14 +41,15 @@ func InitLogger(db *sql.DB) {
 	go processLogs()
 }
 
-func LogInfo(module, message string, details map[string]any) {
+func LogInfo(eventType, module, message string, details map[string]any) {
 	slog.Info(message, "module", module, "details", details)
 
 	logChan <- models.LogEntry{
-		Level:   "INFO",
-		Module:  module,
-		Message: message,
-		Details: details,
+		Level:     "INFO",
+		EventType: eventType,
+		Module:    module,
+		Message:   message,
+		Details:   details,
 	}
 }
 
@@ -57,10 +57,11 @@ func LogError(module, message string, details map[string]any) {
 	slog.Error(message, "module", module, "details", details)
 
 	logChan <- models.LogEntry{
-		Level:   "ERROR",
-		Module:  module,
-		Message: message,
-		Details: details,
+		Level:     "ERROR",
+		EventType: "error",
+		Module:    module,
+		Message:   message,
+		Details:   details,
 	}
 }
 
@@ -80,7 +81,7 @@ func AutoPruneLogs() {
 
 		_, err = dbConn.Exec(`DELETE FROM system_logs WHERE created_at < datetime('now', ?)`, modifier)
 		if err == nil {
-			LogInfo("system", "Limpeza de logs antigos concluída", map[string]any{"dias_retidos": days})
+			LogInfo("system", "info", "Old logs cleanup completed", map[string]any{"retention_days": days})
 		}
 	}
 

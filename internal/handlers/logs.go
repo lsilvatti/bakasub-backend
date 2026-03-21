@@ -1,11 +1,10 @@
 package handlers
 
 import (
-	"net/http"
-	"strconv"
-
 	"bakasub-backend/internal/models"
 	"bakasub-backend/internal/utils"
+	"net/http"
+	"strconv"
 )
 
 type LogProvider interface {
@@ -36,6 +35,12 @@ func (h *LogHandler) GetLogsHandler(w http.ResponseWriter, r *http.Request) {
 
 	logs, total, err := h.Service.GetLogs(limit, offset, level, module)
 	if err != nil {
+		utils.LogError("log_handler", "Failed to retrieve logs via service", map[string]any{
+			"page":   page,
+			"level":  level,
+			"module": module,
+			"error":  err.Error(),
+		})
 		utils.Error(w, http.StatusInternalServerError, "Failed to retrieve logs: "+err.Error())
 		return
 	}

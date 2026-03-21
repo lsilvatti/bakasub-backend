@@ -2,6 +2,7 @@ package services
 
 import (
 	"bakasub-backend/internal/models"
+	"bakasub-backend/internal/utils"
 	"database/sql"
 )
 
@@ -16,6 +17,7 @@ func NewLanguageService(db *sql.DB) *LanguageService {
 func (s *LanguageService) GetLanguages() ([]models.Language, error) {
 	rows, err := s.DB.Query("SELECT id, code, name FROM languages")
 	if err != nil {
+		utils.LogError("languages", "Failed to query languages", map[string]any{"error": err.Error()})
 		return nil, err
 	}
 	defer rows.Close()
@@ -24,6 +26,7 @@ func (s *LanguageService) GetLanguages() ([]models.Language, error) {
 	for rows.Next() {
 		var lang models.Language
 		if err := rows.Scan(&lang.ID, &lang.Code, &lang.Name); err != nil {
+			utils.LogError("languages", "Failed to scan language row", map[string]any{"error": err.Error()})
 			return nil, err
 		}
 		languages = append(languages, lang)
@@ -35,6 +38,12 @@ func (s *LanguageService) GetLanguageByCode(code string) (*models.Language, erro
 	var lang models.Language
 	err := s.DB.QueryRow("SELECT id, code, name FROM languages WHERE code = ?", code).Scan(&lang.ID, &lang.Code, &lang.Name)
 	if err != nil {
+		if err != sql.ErrNoRows {
+			utils.LogError("languages", "Failed to fetch language by code", map[string]any{
+				"code":  code,
+				"error": err.Error(),
+			})
+		}
 		return nil, err
 	}
 	return &lang, nil
@@ -42,15 +51,53 @@ func (s *LanguageService) GetLanguageByCode(code string) (*models.Language, erro
 
 func (s *LanguageService) AddLanguage(lang models.Language) error {
 	_, err := s.DB.Exec("INSERT INTO languages (code, name) VALUES (?, ?)", lang.Code, lang.Name)
-	return err
+	if err != nil {
+		utils.LogError("languages", "Failed to add language", map[string]any{
+			"code":  lang.Code,
+			"error": err.Error(),
+		})
+		return err
+	}
+
+	utils.LogInfo("languages", "create", "Language added successfully", map[string]any{
+		"code": lang.Code,
+		"name": lang.Name,
+	})
+
+	return nil
 }
 
 func (s *LanguageService) UpdateLanguage(lang models.Language) error {
 	_, err := s.DB.Exec("UPDATE languages SET name = ? WHERE code = ?", lang.Name, lang.Code)
-	return err
+	if err != nil {
+		utils.LogError("languages", "Failed to update language", map[string]any{
+			"code":  lang.Code,
+			"error": err.Error(),
+		})
+		return err
+	}
+
+	utils.LogInfo("languages", "update", "Language updated successfully", map[string]any{
+		"code": lang.Code,
+		"name": lang.Name,
+	})
+
+	return nil
 }
 
 func (s *LanguageService) DeleteLanguage(code string) error {
 	_, err := s.DB.Exec("DELETE FROM languages WHERE code = ?", code)
-	return err
+	if err != nil {
+		utils.LogError("languages", "Failed to delete language", map[string]any{
+			"code":  code,
+			"error": err.Error(),
+		})
+		return err
+	}
+
+	utils.LogInfo("languages", "delete", "Language deleted successfully", map[string]any{
+		"code": code,
+	})
+
+	return nil
 }

@@ -2,6 +2,7 @@ package services
 
 import (
 	"bakasub-backend/internal/models"
+	"bakasub-backend/internal/utils"
 	"database/sql"
 )
 
@@ -34,6 +35,11 @@ func (s *LogService) GetLogs(limit, offset int, level, module string) ([]models.
 	var total int
 	err := s.DB.QueryRow(countQuery, args...).Scan(&total)
 	if err != nil {
+		utils.LogError("logs", "Failed to count total logs for pagination", map[string]any{
+			"error":  err.Error(),
+			"level":  level,
+			"module": module,
+		})
 		return nil, 0, err
 	}
 
@@ -42,6 +48,11 @@ func (s *LogService) GetLogs(limit, offset int, level, module string) ([]models.
 
 	rows, err := s.DB.Query(dataQuery, args...)
 	if err != nil {
+		utils.LogError("logs", "Failed to query system logs data", map[string]any{
+			"error":  err.Error(),
+			"limit":  limit,
+			"offset": offset,
+		})
 		return nil, 0, err
 	}
 	defer rows.Close()
@@ -52,6 +63,9 @@ func (s *LogService) GetLogs(limit, offset int, level, module string) ([]models.
 		var details sql.NullString
 
 		if err := rows.Scan(&l.ID, &l.Level, &l.Module, &l.Message, &details, &l.CreatedAt); err != nil {
+			utils.LogError("logs", "Failed to scan system log row", map[string]any{
+				"error": err.Error(),
+			})
 			return nil, 0, err
 		}
 

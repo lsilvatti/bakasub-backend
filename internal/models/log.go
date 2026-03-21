@@ -3,10 +3,11 @@ package models
 import "time"
 
 type LogEntry struct {
-	Level   string         `json:"level"`
-	Module  string         `json:"module"`
-	Message string         `json:"message"`
-	Details map[string]any `json:"details,omitempty"`
+	Level     string         `json:"level"`
+	EventType string         `json:"event_type"`
+	Module    string         `json:"module"`
+	Message   string         `json:"message"`
+	Details   map[string]any `json:"details,omitempty"`
 }
 
 type SystemLog struct {

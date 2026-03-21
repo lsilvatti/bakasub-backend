@@ -18,15 +18,19 @@ var (
 func processLogs() {
 	for entry := range logChan {
 		if dbConn != nil {
+			if entry.Details == nil {
+				entry.Details = make(map[string]any)
+			}
+			entry.Details["event_type"] = entry.EventType
+
 			var detailsJSON string
-			if entry.Details != nil {
-				detailsBytes, err := json.Marshal(entry.Details)
-				if err == nil {
-					detailsJSON = string(detailsBytes)
-				}
+			detailsBytes, err := json.Marshal(entry.Details)
+			if err == nil {
+				detailsJSON = string(detailsBytes)
 			}
 
-			_, _ = dbConn.Exec("INSERT INTO system_logs (level, event_type, module, message, details) VALUES ($1, $2, $3, $4, $5)", entry.Level, entry.EventType, entry.Module, entry.Message, detailsJSON)
+			_, _ = dbConn.Exec("INSERT INTO system_logs (level, module, message, details) VALUES ($1, $2, $3, $4)",
+				entry.Level, entry.Module, entry.Message, detailsJSON)
 		}
 	}
 }
@@ -41,7 +45,12 @@ func InitLogger(db *sql.DB) {
 	go processLogs()
 }
 
-func LogInfo(eventType, module, message string, details map[string]any) {
+func LogInfo(module, eventType, message string, details map[string]any) {
+	if details == nil {
+		details = make(map[string]any)
+	}
+	details["event_type"] = eventType
+
 	slog.Info(message, "module", module, "details", details)
 
 	logChan <- models.LogEntry{
@@ -54,6 +63,11 @@ func LogInfo(eventType, module, message string, details map[string]any) {
 }
 
 func LogError(module, message string, details map[string]any) {
+	if details == nil {
+		details = make(map[string]any)
+	}
+	details["event_type"] = "error"
+
 	slog.Error(message, "module", module, "details", details)
 
 	logChan <- models.LogEntry{
@@ -66,7 +80,7 @@ func LogError(module, message string, details map[string]any) {
 }
 
 func AutoPruneLogs() {
-	executarLimpeza := func() {
+	cleanupOldLogs := func() {
 		if dbConn == nil {
 			return
 		}
@@ -85,10 +99,10 @@ func AutoPruneLogs() {
 		}
 	}
 
-	executarLimpeza()
+	cleanupOldLogs()
 
 	ticker := time.NewTicker(24 * time.Hour)
 	for range ticker.C {
-		executarLimpeza()
+		cleanupOldLogs()
 	}
 }

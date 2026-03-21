@@ -35,7 +35,20 @@ CREATE TABLE system_logs (
 
 CREATE INDEX idx_logs_module ON system_logs(module);
 
+CREATE TABLE translation_memory (
+    hash TEXT PRIMARY KEY,
+    source_text TEXT NOT NULL,
+    translated_text TEXT NOT NULL,
+    target_lang TEXT NOT NULL,
+    preset TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_translation_memory_hash ON translation_memory(hash);
+
+
 -- +goose Down
 DROP TABLE favorite_folders;
 DROP TABLE user_config;
 DROP TABLE system_logs;
+DROP TABLE translation_memory;

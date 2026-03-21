@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bakasub-backend/internal/models"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -14,6 +15,68 @@ var (
 	dbConn  *sql.DB
 	logChan = make(chan models.LogEntry, 500)
 )
+
+const (
+	colorReset  = "\033[0m"
+	colorRed    = "\033[31m"
+	colorGreen  = "\033[32m"
+	colorYellow = "\033[33m"
+	colorCyan   = "\033[36m"
+	colorGray   = "\033[90m"
+)
+
+type CustomHandler struct {
+	h slog.Handler
+}
+
+func (h *CustomHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	return h.h.Enabled(ctx, level)
+}
+
+func (h *CustomHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return &CustomHandler{h: h.h.WithAttrs(attrs)}
+}
+
+func (h *CustomHandler) WithGroup(name string) slog.Handler {
+	return &CustomHandler{h: h.h.WithGroup(name)}
+}
+
+func (h *CustomHandler) Handle(ctx context.Context, r slog.Record) error {
+	level := r.Level.String()
+	levelColor := colorReset
+
+	switch r.Level {
+	case slog.LevelInfo:
+		levelColor = colorCyan
+	case slog.LevelWarn:
+		levelColor = colorYellow
+	case slog.LevelError:
+		levelColor = colorRed
+	}
+
+	timeStr := r.Time.Format("15:04:05")
+
+	module := "system"
+	var detailsStr string
+	r.Attrs(func(a slog.Attr) bool {
+		if a.Key == "module" {
+			module = a.Value.String()
+		} else if a.Key == "details" {
+			detailsStr = fmt.Sprintf(" %s%v%s", colorGray, a.Value, colorReset)
+		}
+		return true
+	})
+
+	fmt.Printf("%s%s%s | %s%-5s%s | %s%-10s%s | %s%s%s%s\n",
+		colorGray, timeStr, colorReset,
+		levelColor, level, colorReset,
+		colorYellow, module, colorReset,
+		colorReset, r.Message, colorReset,
+		detailsStr,
+	)
+
+	return nil
+}
 
 func processLogs() {
 	for entry := range logChan {
@@ -38,8 +101,9 @@ func processLogs() {
 func InitLogger(db *sql.DB) {
 	dbConn = db
 
-	opts := &slog.HandlerOptions{Level: slog.LevelInfo}
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, opts))
+	logger := slog.New(&CustomHandler{
+		h: slog.NewJSONHandler(os.Stdout, nil),
+	})
 	slog.SetDefault(logger)
 
 	go processLogs()

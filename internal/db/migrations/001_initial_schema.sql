@@ -14,7 +14,7 @@ CREATE TABLE user_config (
     
     log_retention_days INTEGER NOT NULL DEFAULT 7,
 
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE favorite_folders (
@@ -26,10 +26,10 @@ CREATE TABLE favorite_folders (
 
 CREATE TABLE system_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    level TEXT NOT NULL,       -- INFO, WARN, ERROR
-    module TEXT NOT NULL,      -- 'translate', 'video', 'api'
-    message TEXT NOT NULL,     -- 'Tradução iniciada', 'Falha no FFmpeg'
-    details TEXT,              -- JSON com dados extras (ex: qual arquivo, tentativa n°)
+    level TEXT NOT NULL,
+    module TEXT NOT NULL,
+    message TEXT NOT NULL,
+    details TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

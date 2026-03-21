@@ -1,5 +1,3 @@
-// this is hell
-
 package parser
 
 import (
@@ -41,6 +39,9 @@ func ParseASS(rawText string) (*ASSDocument, []models.SubtitleBlock) {
 
 	for _, line := range lines {
 		if !strings.HasPrefix(line, "Dialogue:") {
+			if strings.HasPrefix(line, "Title:") {
+				continue
+			}
 			headerBuilder.WriteString(line + "\n")
 			continue
 		}

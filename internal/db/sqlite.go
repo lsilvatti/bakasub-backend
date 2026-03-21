@@ -20,6 +20,15 @@ func InitDB(dbPath string) (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
+	_, err = db.Exec("PRAGMA journal_mode=WAL;")
+	if err != nil {
+		log.Printf("Warning: failed to enable WAL mode: %v", err)
+	}
+	_, err = db.Exec("PRAGMA busy_timeout=5000;")
+	if err != nil {
+		log.Printf("Warning: failed to set busy_timeout: %v", err)
+	}
+
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}

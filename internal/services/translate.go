@@ -106,7 +106,7 @@ func (s *TranslatorService) ProcessSubtitleFile(inputPath, model, outputPath, ap
 		}
 	}
 
-	err = s.buildAndSaveSubtitle(ext, outputPath, blocks, assDoc, vttHeader)
+	err = s.buildAndSaveSubtitle(ext, outputPath, blocks, assDoc, vttHeader, targetLangCode)
 	if err != nil {
 		utils.LogError("translate", "Failed to save final subtitle", map[string]any{"error": err.Error()})
 		utils.SendSSE("error", "translate", "Failed to save output file.", nil)
@@ -175,9 +175,9 @@ func (s *TranslatorService) applyTranslationMemory(blocks []models.SubtitleBlock
 		err := s.DB.QueryRow("SELECT translated_text FROM translation_memory WHERE hash = ?", hashStr).Scan(&cachedTranslation)
 
 		if err == nil && cachedTranslation != "" {
-			blocks[i].Text = cachedTranslation // Cache Hit
+			blocks[i].Text = cachedTranslation
 		} else {
-			uncachedIndices = append(uncachedIndices, i) // Cache Miss
+			uncachedIndices = append(uncachedIndices, i)
 		}
 	}
 
@@ -188,7 +188,7 @@ func (s *TranslatorService) createBatches(blocks []models.SubtitleBlock, uncache
 	var batches [][]int
 	var currentBatch []int
 	currentChars := 0
-	const separatorLen = 12 // "\n---NEXT---\n" len
+	const separatorLen = 12
 
 	for _, idx := range uncachedIndices {
 		blockLen := len(blocks[idx].Text)
@@ -249,7 +249,7 @@ func (s *TranslatorService) processTranslationBatches(batches [][]int, blocks []
 			for attempt := 1; attempt <= ctxConfig.MaxRetries; attempt++ {
 				translatedText, err = s.LLM.TranslateText(joinedText, model, apiKey, ctxConfig.TargetLangName, ctxConfig.SystemPrompt)
 				if err == nil {
-					break // Success
+					break
 				}
 
 				utils.LogInfo("translate", "warn", "Batch translation failed, retrying...", map[string]any{
@@ -299,11 +299,15 @@ func (s *TranslatorService) processTranslationBatches(batches [][]int, blocks []
 					hashBytes := sha256.Sum256([]byte(hashInput))
 					hashStr := hex.EncodeToString(hashBytes[:])
 
-					_, _ = s.DB.Exec(`
+					_, err := s.DB.Exec(`
 						INSERT OR IGNORE INTO translation_memory (hash, source_text, translated_text, target_lang, preset) 
 						VALUES (?, ?, ?, ?, ?)`,
 						hashStr, origText, finalTranslatedText, ctxConfig.TargetLangCode, ctxConfig.PresetAlias,
 					)
+
+					if err != nil {
+						utils.LogError("translate", "Failed to cache translation memory", map[string]any{"error": err.Error(), "hash": hashStr})
+					}
 				}
 			}
 
@@ -323,10 +327,18 @@ func (s *TranslatorService) processTranslationBatches(batches [][]int, blocks []
 	return translationErr
 }
 
-func (s *TranslatorService) buildAndSaveSubtitle(ext, outputPath string, blocks []models.SubtitleBlock, assDoc *parser.ASSDocument, vttHeader string) error {
+func (s *TranslatorService) buildAndSaveSubtitle(ext, outputPath string, blocks []models.SubtitleBlock, assDoc *parser.ASSDocument, vttHeader string, targetLang string) error {
 	var outputText string
 	switch ext {
 	case ".ass", ".ssa":
+		newTitle := fmt.Sprintf("Title: [BakaSub-AI] %s", targetLang)
+
+		if strings.Contains(assDoc.Header, "[Script Info]") {
+			assDoc.Header = strings.Replace(assDoc.Header, "[Script Info]", "[Script Info]\n"+newTitle, 1)
+		} else {
+			assDoc.Header = "[Script Info]\n" + newTitle + "\n" + assDoc.Header
+		}
+
 		outputText = parser.BuildASS(assDoc, blocks)
 	case ".vtt":
 		outputText = parser.BuildVTT(vttHeader, blocks)

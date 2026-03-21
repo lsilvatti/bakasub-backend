@@ -38,6 +38,8 @@ func main() {
 
 	utils.InitLogger(database)
 
+	utils.InitSSEBroker()
+
 	r := chi.NewRouter()
 
 	r.Use(cors.Handler(cors.Options{

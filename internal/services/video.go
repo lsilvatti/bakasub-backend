@@ -165,9 +165,8 @@ func (s *VideoService) ExtractSubtitle(videoPath string, subtitleId int) (string
 		outExt = ".ass"
 	}
 
-	subFilename := fmt.Sprintf("%s_%d_%s%s", nameWithoutExt, subtitleId, lang, outExt)
+	subFilename := fmt.Sprintf("%s_trackId%d_%s%s", nameWithoutExt, subtitleId, lang, outExt)
 	subPath := filepath.Join(dir, subFilename)
-
 	fileExt := strings.ToLower(ext)
 
 	utils.SendSSE("progress", "video", "Extracting subtitle from video...", map[string]any{"track_id": subtitleId})

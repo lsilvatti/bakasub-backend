@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"bakasub-backend/internal/utils"
@@ -44,6 +45,10 @@ func (h *TranslateHandler) Translate(w http.ResponseWriter, r *http.Request) {
 	dir := filepath.Dir(inputPath)
 	ext := filepath.Ext(inputPath)
 	base := strings.TrimSuffix(filepath.Base(inputPath), ext)
+
+	langSuffixRegex := regexp.MustCompile(`(?i)_([a-z]{2,3}(-[a-z]{2,3})?)$`)
+	base = langSuffixRegex.ReplaceAllString(base, "")
+
 	outputPath := filepath.Join(dir, fmt.Sprintf("%s_%s%s", base, reqData.TargetLang, ext))
 
 	utils.LogInfo("translate_handler", "info", "Translation request received", map[string]any{

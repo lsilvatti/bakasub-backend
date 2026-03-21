@@ -52,7 +52,7 @@ func main() {
 		MaxAge:           300,
 	}))
 
-	r.Mount("/api", routes.APIRoutes(database))
+	r.Mount("/api/v1/", routes.APIRoutes(database))
 
 	port := ":8080"
 

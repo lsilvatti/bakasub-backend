@@ -11,7 +11,7 @@ import (
 func APIRoutes(database *sql.DB) chi.Router {
 	r := chi.NewRouter()
 
-	r.Get("/v1/health", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	})

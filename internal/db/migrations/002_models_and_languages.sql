@@ -61,5 +61,25 @@ INSERT INTO translation_presets (alias, name, system_prompt, batch_size, tempera
     0.7
 );
 
+CREATE TABLE languages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO languages (code, name) VALUES
+('en', 'English'),
+('es', 'Spanish'),
+('fr', 'French'),
+('de', 'German'),
+('zh', 'Chinese'),
+('ja', 'Japanese'),
+('ko', 'Korean'),
+('ru', 'Russian'),
+('pt', 'Portuguese'),
+('br', 'Brazilian Portuguese');
+
 -- +goose Down
 DROP TABLE translation_presets;
+DROP TABLE languages;

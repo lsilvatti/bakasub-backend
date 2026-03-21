@@ -67,7 +67,7 @@ func FormatValidationErrors(err error) []ValidationError {
 	}
 
 	return append(errs, ValidationError{
-		Field:   "geral",
+		Field:   "general",
 		Message: err.Error(),
 	})
 }

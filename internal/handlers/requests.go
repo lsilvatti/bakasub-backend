@@ -79,6 +79,7 @@ type UpdateConfigRequest struct {
 	DefaultPreset       string `json:"default_preset" validate:"required"`
 	RemoveSdhDefault    bool   `json:"remove_sdh_default"`
 	VideoTimeoutMinutes int    `json:"video_timeout_minutes" validate:"required"`
+	LogRetentionDays    int    `json:"log_retention_days" validate:"required"`
 }
 
 func (r *AddPresetRequest) ToModel() models.TranslationPreset {
@@ -129,5 +130,6 @@ func (r *UpdateConfigRequest) ToModel() models.UserConfig {
 		DefaultPreset:       r.DefaultPreset,
 		RemoveSdhDefault:    r.RemoveSdhDefault,
 		VideoTimeoutMinutes: r.VideoTimeoutMinutes,
+		LogRetentionDays:    r.LogRetentionDays,
 	}
 }

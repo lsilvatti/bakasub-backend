@@ -12,6 +12,8 @@ CREATE TABLE user_config (
     
     video_timeout_minutes INTEGER NOT NULL DEFAULT 20,
     
+    log_retention_days INTEGER NOT NULL DEFAULT 7,
+
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -22,6 +24,31 @@ CREATE TABLE favorite_folders (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE system_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    level TEXT NOT NULL,
+    module TEXT NOT NULL,
+    message TEXT NOT NULL,
+    details TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_logs_module ON system_logs(module);
+
+CREATE TABLE translation_memory (
+    hash TEXT PRIMARY KEY,
+    source_text TEXT NOT NULL,
+    translated_text TEXT NOT NULL,
+    target_lang TEXT NOT NULL,
+    preset TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_translation_memory_hash ON translation_memory(hash);
+
+
 -- +goose Down
 DROP TABLE favorite_folders;
 DROP TABLE user_config;
+DROP TABLE system_logs;
+DROP TABLE translation_memory;

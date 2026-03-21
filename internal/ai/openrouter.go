@@ -86,7 +86,7 @@ func (s *OpenRouterService) TranslateText(text string, model string, apiKey stri
 	}
 
 	if len(resBody.Choices) == 0 || resBody.Choices[0].Message.Content == "" {
-		fmt.Printf("--- ALERTA: Resposta Vazia da IA ---\nBody Completo: %s\n-------------------\n", string(bodyBytes))
+		fmt.Printf("--- WARNING: Empty AI Response ---\nFull Body: %s\n-------------------\n", string(bodyBytes))
 		return "", fmt.Errorf("no translation found (possible content filter)")
 	}
 

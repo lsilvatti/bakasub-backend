@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"bakasub-backend/internal/utils"
 	"database/sql"
 	"net/http"
 
@@ -10,7 +11,7 @@ import (
 func APIRoutes(database *sql.DB) chi.Router {
 	r := chi.NewRouter()
 
-	r.Get("/v1/health", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	})
@@ -21,6 +22,9 @@ func APIRoutes(database *sql.DB) chi.Router {
 	r.Mount("/folders", FoldersRoutes(database))
 	r.Mount("/presets", PresetRoutes(database))
 	r.Mount("/languages", LanguageRoutes(database))
+	r.Mount("/logs", LogRoutes(database))
+
+	r.Get("/events", utils.Broker.ServeHTTP)
 
 	return r
 }

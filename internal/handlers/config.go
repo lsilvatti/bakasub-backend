@@ -29,7 +29,7 @@ func (h *ConfigHandler) GetUserConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.JSON(w, http.StatusOK, "success", "", config)
+	utils.JSON(w, http.StatusOK, "success", "User config retrieved successfully", config)
 }
 
 func (h *ConfigHandler) UpdateUserConfig(w http.ResponseWriter, r *http.Request) {

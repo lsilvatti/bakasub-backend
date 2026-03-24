@@ -1,6 +1,17 @@
 version: '3.8'
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bakasub_postgres
+    environment:
+      POSTGRES_USER: bakasub
+      POSTGRES_PASSWORD: bakasub_password
+      POSTGRES_DB: bakasub
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
   backend:
     build:
       context: https://github.com/lsilvatti/bakasub-backend.git#main
@@ -9,9 +20,12 @@ services:
       - "8080:8080"
     environment:
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - DATABASE_URL=postgres://bakasub:bakasub_password@postgres:5432/bakasub?sslmode=disable
     volumes:
-      - bakasub_db:/app/data
+      - app_data:/app/data
       - ${VIDEO_DIR:-./videos}:/videos
+    depends_on:
+      - postgres
     restart: unless-stopped
 
   frontend:
@@ -25,4 +39,5 @@ services:
     restart: unless-stopped
 
 volumes:
-  bakasub_db:
+  postgres_data:
+  app_data:

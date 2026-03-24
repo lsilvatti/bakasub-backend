@@ -23,6 +23,7 @@ func OpenRouterTranslateRoutes(database *sql.DB) chi.Router {
 	}
 
 	r.Post("/translate", translateHandler.Translate)
+	r.Post("/preflight", translateHandler.PreFlight)
 
 	return r
 }

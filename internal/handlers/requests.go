@@ -11,6 +11,13 @@ type TranslateRequest struct {
 	Context    string `json:"context"`
 }
 
+type PreFlightRequest struct {
+	FilePath   string `json:"filePath" validate:"required"`
+	Model      string `json:"model" validate:"required"`
+	TargetLang string `json:"targetLang" validate:"required"`
+	Preset     string `json:"preset" validate:"required"`
+	RemoveSDH  bool   `json:"removeSDH"`
+}
 type AddFolderRequest struct {
 	Alias string `json:"alias" validate:"required"`
 	Path  string `json:"path" validate:"required"`

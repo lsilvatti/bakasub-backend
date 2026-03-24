@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
+	"sync"
 	"time"
 )
 
@@ -23,16 +25,105 @@ type ResponseBody struct {
 	Choices []struct {
 		Message Message `json:"message"`
 	} `json:"choices"`
+	Usage struct {
+		PromptTokens     int `json:"prompt_tokens"`
+		CompletionTokens int `json:"completion_tokens"`
+		TotalTokens      int `json:"total_tokens"`
+	} `json:"usage"`
 }
 
-type OpenRouterService struct{}
+type ModelPricing struct {
+	Prompt     string `json:"prompt"`
+	Completion string `json:"completion"`
+}
+
+type ModelInfo struct {
+	ID      string       `json:"id"`
+	Pricing ModelPricing `json:"pricing"`
+}
+
+type ModelsResponse struct {
+	Data []ModelInfo `json:"data"`
+}
+
+type pricingCacheEntry struct {
+	Prompt     float64
+	Completion float64
+	Expires    time.Time
+}
+
+type OpenRouterService struct {
+	pricingCache map[string]pricingCacheEntry
+	mu           sync.RWMutex
+}
 
 func NewOpenRouterService() *OpenRouterService {
-	return &OpenRouterService{}
+	return &OpenRouterService{
+		pricingCache: make(map[string]pricingCacheEntry),
+	}
 }
 
 var httpClient = &http.Client{
 	Timeout: 60 * time.Second,
+}
+
+func (s *OpenRouterService) GetModelPricing(modelID string) (float64, float64, error) {
+	s.mu.RLock()
+	entry, exists := s.pricingCache[modelID]
+	s.mu.RUnlock()
+
+	if exists && time.Now().Before(entry.Expires) {
+		return entry.Prompt, entry.Completion, nil
+	}
+
+	req, err := http.NewRequest("GET", "https://openrouter.ai/api/v1/models", nil)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return 0, 0, fmt.Errorf("failed to fetch models, status code: %d", resp.StatusCode)
+	}
+
+	var res ModelsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return 0, 0, err
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var promptCost, completionCost float64
+	found := false
+
+	for _, m := range res.Data {
+		p, _ := strconv.ParseFloat(m.Pricing.Prompt, 64)
+		c, _ := strconv.ParseFloat(m.Pricing.Completion, 64)
+
+		s.pricingCache[m.ID] = pricingCacheEntry{
+			Prompt:     p,
+			Completion: c,
+			Expires:    time.Now().Add(1 * time.Hour),
+		}
+
+		if m.ID == modelID {
+			promptCost = p
+			completionCost = c
+			found = true
+		}
+	}
+
+	if !found {
+		return 0, 0, fmt.Errorf("model %s not found in OpenRouter", modelID)
+	}
+
+	return promptCost, completionCost, nil
 }
 
 func (s *OpenRouterService) TranslateText(text string, model string, apiKey string, targetLangName string, systemPrompt string) (string, error) {

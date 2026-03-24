@@ -8,15 +8,45 @@ import (
 	"regexp"
 	"strings"
 
+	"bakasub-backend/internal/models"
 	"bakasub-backend/internal/utils"
 )
 
 type SubtitleTranslator interface {
 	ProcessSubtitleFile(inputPath string, model string, outputPath string, apiKey string, targetLang string, preset string, removeSDH bool, context string) error
+	PreFlight(inputPath string, model string, targetLang string, preset string, removeSDH bool) (*models.JobEstimate, error)
 }
 
 type TranslateHandler struct {
 	Translator SubtitleTranslator
+}
+
+func (h *TranslateHandler) PreFlight(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		utils.Error(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+
+	reqData, err := utils.DecodeAndValidate[PreFlightRequest](r)
+	if err != nil {
+		utils.LogError("translate_handler", "Invalid preflight request payload", map[string]any{
+			"error": err.Error(),
+		})
+		utils.Error(w, http.StatusBadRequest, "Invalid data: "+err.Error())
+		return
+	}
+
+	estimate, err := h.Translator.PreFlight(reqData.FilePath, reqData.Model, reqData.TargetLang, reqData.Preset, reqData.RemoveSDH)
+	if err != nil {
+		utils.LogError("translate_handler", "PreFlight analysis failed", map[string]any{
+			"input": reqData.FilePath,
+			"error": err.Error(),
+		})
+		utils.Error(w, http.StatusInternalServerError, "Analysis failed: "+err.Error())
+		return
+	}
+
+	utils.JSON(w, http.StatusOK, "success", "Pre-flight completed", estimate)
 }
 
 func (h *TranslateHandler) Translate(w http.ResponseWriter, r *http.Request) {

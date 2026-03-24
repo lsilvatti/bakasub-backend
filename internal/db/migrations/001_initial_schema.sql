@@ -46,6 +46,28 @@ CREATE TABLE translation_memory (
 
 CREATE INDEX idx_translation_memory_hash ON translation_memory(hash);
 
+CREATE TABLE translation_jobs (
+    id TEXT PRIMARY KEY,
+    status TEXT NOT NULL, -- 'pending', 'analyzing', 'processing', 'completed', 'failed'
+    file_path TEXT NOT NULL,
+    target_lang TEXT NOT NULL,
+    model TEXT NOT NULL,
+    preset TEXT NOT NULL,
+    
+    -- Estimativas (Pre-flight)
+    estimated_lines INTEGER DEFAULT 0,
+    estimated_tokens INTEGER DEFAULT 0,
+    estimated_cost_usd REAL DEFAULT 0.0,
+    
+    -- Progresso Real
+    processed_lines INTEGER DEFAULT 0,
+    total_tokens_used INTEGER DEFAULT 0,
+    actual_cost_usd REAL DEFAULT 0.0,
+    
+    error_message TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
 -- +goose Down
 DROP TABLE favorite_folders;

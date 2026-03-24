@@ -17,6 +17,7 @@ import (
 
 type LLMProvider interface {
 	TranslateText(text string, model string, apiKey string, targetLangName string, systemPrompt string) (string, error)
+	GetModelPricing(modelID string) (float64, float64, error)
 }
 
 type TranslationFileSystemProvider interface {
@@ -39,6 +40,79 @@ func NewTranslatorService(llm LLMProvider, fs TranslationFileSystemProvider, db 
 }
 
 var separatorRegex = regexp.MustCompile(`\s*---NEXT---\s*`)
+
+func (s *TranslatorService) PreFlight(inputPath string, model string, targetLangCode string, presetAlias string, removeSDH bool) (*models.JobEstimate, error) {
+	rawText, err := s.FS.ReadFile(inputPath)
+	if err != nil {
+		return nil, fmt.Errorf("error reading file for preflight: %w", err)
+	}
+
+	ext := strings.ToLower(filepath.Ext(inputPath))
+	var blocks []models.SubtitleBlock
+
+	switch ext {
+	case ".ass", ".ssa":
+		_, blocks = parser.ParseASS(rawText)
+	case ".vtt":
+		_, blocks = parser.ParseVTT(rawText)
+	default:
+		blocks = parser.ParseToBlocks(rawText)
+	}
+
+	if removeSDH && ext != ".ass" {
+		blocks = parser.RemoveSDH(blocks)
+	}
+
+	totalLines := len(blocks)
+	if totalLines == 0 {
+		return nil, fmt.Errorf("no valid subtitle found to estimate")
+	}
+
+	ctxConfig, err := s.getTranslationContext(targetLangCode, presetAlias, "")
+	if err != nil {
+		return nil, fmt.Errorf("error fetching translation context for preflight: %w", err)
+	}
+
+	uncachedIndices, _ := s.applyTranslationMemory(blocks, targetLangCode, presetAlias)
+
+	cachedLines := totalLines - len(uncachedIndices)
+	linesToTranslate := len(uncachedIndices)
+
+	charCount := 0
+	for _, idx := range uncachedIndices {
+		charCount += len(blocks[idx].Text)
+	}
+
+	estInputTokens := 0
+	estOutputTokens := 0
+	totalBatches := 0
+
+	if linesToTranslate > 0 {
+		batches := s.createBatches(blocks, uncachedIndices, ctxConfig.MaxChars)
+		totalBatches = len(batches)
+
+		estInputTokens = (charCount / 4) + (500 * totalBatches)
+		estOutputTokens = charCount / 4
+	}
+
+	promptPrice, completionPrice, err := s.LLM.GetModelPricing(model)
+	if err != nil {
+		utils.LogInfo("translate", "warn", "Could not fetch dynamic pricing, defaulting to 0", map[string]any{"model": model})
+		promptPrice = 0
+		completionPrice = 0
+	}
+
+	estCost := (float64(estInputTokens) * promptPrice) + (float64(estOutputTokens) * completionPrice)
+
+	return &models.JobEstimate{
+		TotalLines:       totalLines,
+		CachedLines:      cachedLines,
+		LinesToTranslate: linesToTranslate,
+		TotalBatches:     totalBatches,
+		EstimatedTokens:  estInputTokens + estOutputTokens,
+		EstimatedCostUSD: estCost,
+	}, nil
+}
 
 func (s *TranslatorService) ProcessSubtitleFile(inputPath, model, outputPath, apiKey, targetLangCode, presetAlias string, removeSDH bool, contextData string) error {
 	if apiKey == "" {

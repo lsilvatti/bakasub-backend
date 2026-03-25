@@ -16,7 +16,7 @@ import (
 )
 
 type LLMProvider interface {
-	TranslateText(text string, model string, apiKey string, targetLangName string, systemPrompt string) (string, int, int, error)
+	TranslateText(text string, model string, apiKey string, sourceLangName string, targetLangName string, systemPrompt string) (string, int, int, error)
 	GetModelPricing(modelID string) (float64, float64, error)
 }
 
@@ -128,6 +128,8 @@ func (s *TranslatorService) ProcessSubtitleFile(jobID, inputPath, model, outputP
 		return err
 	}
 
+	ctxConfig.SourceLangName = s.detectSourceLanguage(inputPath)
+
 	promptPrice, completionPrice, err := s.LLM.GetModelPricing(model)
 	if err == nil {
 		ctxConfig.PromptPrice = promptPrice
@@ -193,6 +195,7 @@ type TranslationContext struct {
 	SystemPrompt    string
 	MaxChars        int
 	TargetLangName  string
+	SourceLangName  string
 	MaxRetries      int
 	Concurrency     int
 	BaseRetryDelay  int
@@ -230,6 +233,34 @@ func (s *TranslatorService) getTranslationContext(targetLangCode, presetAlias, c
 	}
 
 	return ctx, nil
+}
+
+func (s *TranslatorService) detectSourceLanguage(inputPath string) string {
+	base := filepath.Base(inputPath)
+	ext := filepath.Ext(base)
+	name := strings.TrimSuffix(base, ext)
+
+	re := regexp.MustCompile(`[._-]([a-zA-Z]{2,3}(?:-[a-zA-Z]{2,3})?)$`)
+	matches := re.FindStringSubmatch(name)
+	if len(matches) < 2 {
+		return ""
+	}
+
+	alias := strings.ToLower(matches[1])
+	var langName string
+
+	query := `
+		SELECT l.name 
+		FROM language_mappings m
+		JOIN languages l ON m.language_code = l.code
+		WHERE m.alias = $1
+	`
+	err := s.DB.QueryRow(query, alias).Scan(&langName)
+	if err != nil {
+		return ""
+	}
+
+	return langName
 }
 
 func (s *TranslatorService) applyTranslationMemory(blocks []models.SubtitleBlock, targetLangCode, presetAlias string) ([]int, map[int]string) {
@@ -320,7 +351,7 @@ func (s *TranslatorService) processTranslationBatches(jobID string, batches [][]
 			backoff := time.Duration(ctxConfig.BaseRetryDelay) * time.Second
 
 			for attempt := 1; attempt <= ctxConfig.MaxRetries; attempt++ {
-				translatedText, pTokens, cTokens, err = s.LLM.TranslateText(joinedText, model, apiKey, ctxConfig.TargetLangName, ctxConfig.SystemPrompt)
+				translatedText, pTokens, cTokens, err = s.LLM.TranslateText(joinedText, model, apiKey, ctxConfig.SourceLangName, ctxConfig.TargetLangName, ctxConfig.SystemPrompt)
 				if err == nil {
 					break
 				}
@@ -369,9 +400,9 @@ func (s *TranslatorService) processTranslationBatches(jobID string, batches [][]
 					hashStr := hex.EncodeToString(hashBytes[:])
 
 					s.DB.Exec(`
-						INSERT INTO translation_memory (hash, source_text, translated_text, target_lang, preset) 
-						VALUES ($1, $2, $3, $4, $5) 
-						ON CONFLICT (hash) DO NOTHING`,
+                        INSERT INTO translation_memory (hash, source_text, translated_text, target_lang, preset) 
+                        VALUES ($1, $2, $3, $4, $5) 
+                        ON CONFLICT (hash) DO NOTHING`,
 						hashStr, origText, finalTranslatedText, ctxConfig.TargetLangCode, ctxConfig.PresetAlias,
 					)
 				}

@@ -47,6 +47,35 @@ INSERT INTO translation_presets (alias, name, system_prompt, batch_size, tempera
 
 ('reality', 'Reality TV / Casual', 'You are a translator for Reality TV, vlogs, and internet content. The dialogue is highly casual, spontaneous, and may contain modern slang, overlaps, and internet culture. Translate naturally, exactly as real people speak in everyday life. Use gender-neutral terms if the subject''s gender is unknown. Keep the energy authentic.', 1500, 0.35);
 
+
+CREATE TABLE language_mappings (
+    alias TEXT PRIMARY KEY,
+    language_code TEXT NOT NULL REFERENCES languages(code) ON DELETE CASCADE
+);
+
+INSERT INTO language_mappings (alias, language_code) VALUES 
+-- Português (Brasil)
+('pt', 'pt-BR'), ('por', 'pt-BR'), ('pb', 'pt-BR'), ('pob', 'pt-BR'), ('pt-br', 'pt-BR'), ('ptb', 'pt-BR'), ('portuguese', 'pt-BR'),
+-- Inglês
+('en', 'en'), ('eng', 'en'), ('english', 'en'), ('en-us', 'en'), ('en-gb', 'en'),
+-- Espanhol
+('es', 'es'), ('spa', 'es'), ('spanish', 'es'), ('es-la', 'es'), ('es-es', 'es'),
+-- Francês
+('fr', 'fr'), ('fre', 'fr'), ('fra', 'fr'), ('french', 'fr'),
+-- Alemão
+('de', 'de'), ('ger', 'de'), ('deu', 'de'), ('german', 'de'),
+-- Italiano
+('it', 'it'), ('ita', 'it'), ('italian', 'it'),
+-- Japonês
+('ja', 'ja'), ('jpn', 'ja'), ('jp', 'ja'), ('japanese', 'ja'),
+-- Coreano
+('ko', 'ko'), ('kor', 'ko'), ('kr', 'ko'), ('korean', 'ko'),
+-- Chinês
+('zh', 'zh-CN'), ('zho', 'zh-CN'), ('chi', 'zh-CN'), ('zh-cn', 'zh-CN'), ('chinese', 'zh-CN'),
+-- Russo
+('ru', 'ru'), ('rus', 'ru'), ('russian', 'ru');
+
 -- +goose Down
 DROP TABLE translation_presets;
 DROP TABLE languages;
+DROP TABLE language_mappings;

@@ -126,15 +126,20 @@ func (s *OpenRouterService) GetModelPricing(modelID string) (float64, float64, e
 	return promptCost, completionCost, nil
 }
 
-func (s *OpenRouterService) TranslateText(text string, model string, apiKey string, targetLangName string, systemPrompt string) (string, int, int, error) {
+func (s *OpenRouterService) TranslateText(text string, model string, apiKey string, sourceLangName string, targetLangName string, systemPrompt string) (string, int, int, error) {
 	url := "https://openrouter.ai/api/v1/chat/completions"
+
+	taskInstruction := fmt.Sprintf("Translate the input to %s.", targetLangName)
+	if sourceLangName != "" {
+		taskInstruction = fmt.Sprintf("Translate the input from %s to %s.", sourceLangName, targetLangName)
+	}
 
 	reqBody := RequestBody{
 		Model: model,
 		Messages: []Message{
 			{
 				Role:    "system",
-				Content: fmt.Sprintf("%s Translate input to target language: %s.", systemPrompt, targetLangName),
+				Content: fmt.Sprintf("%s\n\nTask: %s", systemPrompt, taskInstruction),
 			},
 			{
 				Role:    "user",

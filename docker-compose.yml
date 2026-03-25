@@ -20,7 +20,7 @@ services:
       - "8080:8080"
     environment:
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - DATABASE_URL=postgres://username:password@localhost:5432/database_name?sslmode=disable
+      - DATABASE_URL=postgres://bakasub:bakasub_password@postgres:5432/bakasub?sslmode=disable
     volumes:
       - app_data:/app/data
       - ${VIDEO_DIR:-./videos}:/videos
@@ -31,6 +31,8 @@ services:
   frontend:
     build:
       context: https://github.com/lsilvatti/bakasub-frontend.git#main
+      args:
+        - VITE_TMDB_API_KEY=${TMDB_API_KEY}
     container_name: bakasub_frontend
     ports:
       - "3000:80" 

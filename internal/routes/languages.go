@@ -8,19 +8,16 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func LanguageRoutes(database *sql.DB) chi.Router {
+func LanguageRoutes(db *sql.DB) chi.Router {
 	r := chi.NewRouter()
 
-	LanguageService := services.NewLanguageService(database)
+	languageService := services.NewLanguageService(db)
+	languageHandler := &handlers.LanguageHandler{Service: languageService}
 
-	LanguageHandler := &handlers.LanguageHandler{
-		Service: LanguageService,
-	}
-
-	r.Get("/", LanguageHandler.GetLanguagesHandler)
-	r.Post("/", LanguageHandler.AddLanguageHandler)
-	r.Put("/", LanguageHandler.UpdateLanguageHandler)
-	r.Delete("/", LanguageHandler.DeleteLanguageHandler)
+	r.Get("/", languageHandler.GetLanguages)
+	r.Post("/", languageHandler.CreateLanguage)
+	r.Put("/", languageHandler.UpdateLanguage)
+	r.Delete("/", languageHandler.DeleteLanguage)
 
 	return r
 }

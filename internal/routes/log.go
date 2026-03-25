@@ -18,7 +18,7 @@ func LogRoutes(db *sql.DB) chi.Router {
 		Service: logService,
 	}
 
-	r.Get("/", logHandler.GetLogsHandler)
+	r.Get("/", logHandler.GetLogs)
 
 	return r
 }

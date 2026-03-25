@@ -207,7 +207,7 @@ func (s *TranslatorService) getTranslationContext(targetLangCode, presetAlias, c
 	ctx.TargetLangCode = targetLangCode
 	ctx.PresetAlias = presetAlias
 
-	err := s.DB.QueryRow("SELECT system_prompt, batch_size FROM translation_presets WHERE alias = ?", presetAlias).Scan(&ctx.SystemPrompt, &ctx.MaxChars)
+	err := s.DB.QueryRow("SELECT system_prompt, batch_size FROM translation_presets WHERE alias = $1", presetAlias).Scan(&ctx.SystemPrompt, &ctx.MaxChars)
 	if err != nil {
 		return ctx, fmt.Errorf("error fetching preset '%s': %w", presetAlias, err)
 	}
@@ -216,7 +216,7 @@ func (s *TranslatorService) getTranslationContext(targetLangCode, presetAlias, c
 		ctx.SystemPrompt += fmt.Sprintf("\n\nMEDIA CONTEXT, use this informations to understand the media content, characters names and locations, history, and other relevant details:\n%s", strings.TrimSpace(contextData))
 	}
 
-	err = s.DB.QueryRow("SELECT name FROM languages WHERE code = ?", targetLangCode).Scan(&ctx.TargetLangName)
+	err = s.DB.QueryRow("SELECT name FROM languages WHERE code = $1", targetLangCode).Scan(&ctx.TargetLangName)
 	if err != nil {
 		return ctx, fmt.Errorf("error fetching language '%s': %w", targetLangCode, err)
 	}
@@ -244,7 +244,7 @@ func (s *TranslatorService) applyTranslationMemory(blocks []models.SubtitleBlock
 		hashStr := hex.EncodeToString(hashBytes[:])
 
 		var cachedTranslation string
-		err := s.DB.QueryRow("SELECT translated_text FROM translation_memory WHERE hash = ?", hashStr).Scan(&cachedTranslation)
+		err := s.DB.QueryRow("SELECT translated_text FROM translation_memory WHERE hash = $1", hashStr).Scan(&cachedTranslation)
 
 		if err == nil && cachedTranslation != "" {
 			blocks[i].Text = cachedTranslation
@@ -368,7 +368,12 @@ func (s *TranslatorService) processTranslationBatches(jobID string, batches [][]
 					hashBytes := sha256.Sum256([]byte(hashInput))
 					hashStr := hex.EncodeToString(hashBytes[:])
 
-					s.DB.Exec(`INSERT OR IGNORE INTO translation_memory (hash, source_text, translated_text, target_lang, preset) VALUES (?, ?, ?, ?, ?)`, hashStr, origText, finalTranslatedText, ctxConfig.TargetLangCode, ctxConfig.PresetAlias)
+					s.DB.Exec(`
+						INSERT INTO translation_memory (hash, source_text, translated_text, target_lang, preset) 
+						VALUES ($1, $2, $3, $4, $5) 
+						ON CONFLICT (hash) DO NOTHING`,
+						hashStr, origText, finalTranslatedText, ctxConfig.TargetLangCode, ctxConfig.PresetAlias,
+					)
 				}
 			}
 

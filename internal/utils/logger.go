@@ -81,19 +81,24 @@ func (h *CustomHandler) Handle(ctx context.Context, r slog.Record) error {
 func processLogs() {
 	for entry := range logChan {
 		if dbConn != nil {
-			if entry.Details == nil {
-				entry.Details = make(map[string]any)
+			if entry.Metadata == nil {
+				entry.Metadata = make(map[string]any)
 			}
-			entry.Details["event_type"] = entry.EventType
+			if entry.EventType != "" {
+				entry.Metadata["event_type"] = entry.EventType
+			}
 
-			var detailsJSON string
-			detailsBytes, err := json.Marshal(entry.Details)
+			var metadataJSON string
+			metadataBytes, err := json.Marshal(entry.Metadata)
 			if err == nil {
-				detailsJSON = string(detailsBytes)
+				metadataJSON = string(metadataBytes)
 			}
 
-			_, _ = dbConn.Exec("INSERT INTO system_logs (level, module, message, details) VALUES ($1, $2, $3, $4)",
-				entry.Level, entry.Module, entry.Message, detailsJSON)
+			_, err = dbConn.Exec("INSERT INTO logs (level, module, message, metadata) VALUES ($1, $2, $3, $4)",
+				entry.Level, entry.Module, entry.Message, metadataJSON)
+			if err != nil {
+				fmt.Printf("Erro ao salvar log no banco de dados: %v\n", err)
+			}
 		}
 	}
 }
@@ -122,7 +127,7 @@ func LogInfo(module, eventType, message string, details map[string]any) {
 		EventType: eventType,
 		Module:    module,
 		Message:   message,
-		Details:   details,
+		Metadata:  details,
 	}
 }
 
@@ -139,7 +144,7 @@ func LogError(module, message string, details map[string]any) {
 		EventType: "error",
 		Module:    module,
 		Message:   message,
-		Details:   details,
+		Metadata:  details,
 	}
 }
 
@@ -155,11 +160,13 @@ func AutoPruneLogs() {
 			days = 7
 		}
 
-		modifier := fmt.Sprintf("-%d days", days)
+		cutoffTime := time.Now().AddDate(0, 0, -days)
 
-		_, err = dbConn.Exec(`DELETE FROM system_logs WHERE created_at < datetime('now', ?)`, modifier)
+		_, err = dbConn.Exec(`DELETE FROM logs WHERE timestamp < $1`, cutoffTime)
 		if err == nil {
 			LogInfo("system", "info", "Old logs cleanup completed", map[string]any{"retention_days": days})
+		} else {
+			LogError("system", "Failed to prune old logs", map[string]any{"error": err.Error()})
 		}
 	}
 

@@ -25,8 +25,8 @@ func NewFolderService(db *sql.DB, fs FolderFileSystemProvider) *FolderService {
 	}
 }
 
-func (s *FolderService) AddFolder(folder models.FolderConfig) error {
-	query := "INSERT INTO favorite_folders (alias, path) VALUES (?, ?)"
+func (s *FolderService) CreateFolder(folder models.FolderConfig) error {
+	query := "INSERT INTO folders (alias, path) VALUES ($1, $2)"
 	_, err := s.DB.Exec(query, folder.Alias, folder.Path)
 
 	if err != nil {
@@ -46,8 +46,8 @@ func (s *FolderService) AddFolder(folder models.FolderConfig) error {
 	return nil
 }
 
-func (s *FolderService) RemoveFolder(id int) bool {
-	query := "DELETE FROM favorite_folders WHERE id = ?"
+func (s *FolderService) DeleteFolder(id int) bool {
+	query := "DELETE FROM folders WHERE id = $1"
 	result, err := s.DB.Exec(query, id)
 	if err != nil {
 		utils.LogError("folder", "Failed to execute delete folder query", map[string]any{
@@ -81,7 +81,7 @@ func (s *FolderService) RemoveFolder(id int) bool {
 }
 
 func (s *FolderService) GetFolders() ([]models.FolderConfig, error) {
-	query := "SELECT id, alias, path FROM favorite_folders"
+	query := "SELECT id, alias, path FROM folders"
 	rows, err := s.DB.Query(query)
 	if err != nil {
 		utils.LogError("folder", "Failed to get favorite folders from database", map[string]any{

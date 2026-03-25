@@ -29,7 +29,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	database, err := db.InitDB("bakasub.db")
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		dbURL = "postgres://bakasub:bakasub_password@localhost:5432/bakasub?sslmode=disable"
+	}
+
+	database, err := db.InitializePostgres(dbURL)
 	if err != nil {
 		fmt.Printf("FATAL ERROR: Error initializing database: %v\n", err)
 		os.Exit(1)

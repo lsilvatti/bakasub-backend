@@ -11,16 +11,16 @@ import (
 func PresetRoutes(database *sql.DB) chi.Router {
 	r := chi.NewRouter()
 
-	PresetService := services.NewPresetService(database)
+	presetService := services.NewPresetService(database)
 
-	PresetHandler := &handlers.PresetHandler{
-		Service: PresetService,
+	presetHandler := &handlers.PresetHandler{
+		Service: presetService,
 	}
 
-	r.Get("/", PresetHandler.GetPresetsHandler)
-	r.Post("/", PresetHandler.CreatePresetHandler)
-	r.Put("/", PresetHandler.UpdatePresetHandler)
-	r.Delete("/", PresetHandler.DeletePresetHandler)
+	r.Get("/", presetHandler.GetPresets)
+	r.Post("/", presetHandler.CreatePreset)
+	r.Put("/", presetHandler.UpdatePreset)
+	r.Delete("/", presetHandler.DeletePreset)
 
 	return r
 }

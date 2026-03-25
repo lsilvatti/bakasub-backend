@@ -23,6 +23,7 @@ func APIRoutes(database *sql.DB) chi.Router {
 	r.Mount("/presets", PresetRoutes(database))
 	r.Mount("/languages", LanguageRoutes(database))
 	r.Mount("/logs", LogRoutes(database))
+	r.Mount("/jobs", JobRoutes(database))
 
 	r.Get("/events", utils.Broker.ServeHTTP)
 

@@ -8,14 +8,14 @@ import (
 )
 
 type LogProvider interface {
-	GetLogs(limit, offset int, level, module string) ([]models.SystemLog, int, error)
+	GetLogs(limit, offset int, level, module string) ([]models.LogEntry, int, error)
 }
 
 type LogHandler struct {
 	Service LogProvider
 }
 
-func (h *LogHandler) GetLogsHandler(w http.ResponseWriter, r *http.Request) {
+func (h *LogHandler) GetLogs(w http.ResponseWriter, r *http.Request) {
 	limitStr := r.URL.Query().Get("limit")
 	pageStr := r.URL.Query().Get("page")
 	level := r.URL.Query().Get("level")

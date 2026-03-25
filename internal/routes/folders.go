@@ -17,9 +17,9 @@ func FoldersRoutes(database *sql.DB) chi.Router {
 
 	foldersHandler := handlers.FolderHandler{Service: folderService}
 
-	r.Get("/", foldersHandler.GetFavoriteFolders)
-	r.Post("/", foldersHandler.AddFavoriteFolder)
-	r.Delete("/", foldersHandler.RemoveFavoriteFolder)
+	r.Get("/", foldersHandler.GetFolders)
+	r.Post("/", foldersHandler.CreateFolder)
+	r.Delete("/", foldersHandler.DeleteFolder)
 	r.Get("/scan/videos", foldersHandler.ListVideoFiles)
 	r.Get("/scan/subtitles", foldersHandler.ListSubtitleFiles)
 

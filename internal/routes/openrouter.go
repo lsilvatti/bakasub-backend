@@ -15,11 +15,13 @@ func OpenRouterTranslateRoutes(database *sql.DB) chi.Router {
 
 	openRouterService := ai.NewOpenRouterService()
 	diskService := fileio.NewFileIOService()
+	jobService := services.NewJobService(database)
 
-	translationService := services.NewTranslatorService(openRouterService, diskService, database)
+	translationService := services.NewTranslatorService(openRouterService, diskService, database, jobService)
 
 	translateHandler := &handlers.TranslateHandler{
 		Translator: translationService,
+		JobService: jobService,
 	}
 
 	r.Post("/translate", translateHandler.Translate)

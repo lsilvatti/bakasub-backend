@@ -16,8 +16,9 @@ require (
 	github.com/go-chi/cors v1.2.2 // direct
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
-	github.com/google/uuid v1.6.0 // indirect
+	github.com/google/uuid v1.6.0
 	github.com/leodido/go-urn v1.4.0 // indirect
+	github.com/lib/pq v1.12.0
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect

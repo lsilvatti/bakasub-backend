@@ -16,7 +16,7 @@ import (
 )
 
 type LLMProvider interface {
-	TranslateText(text string, model string, apiKey string, targetLangName string, systemPrompt string) (string, error)
+	TranslateText(text string, model string, apiKey string, targetLangName string, systemPrompt string) (string, int, int, error)
 	GetModelPricing(modelID string) (float64, float64, error)
 }
 
@@ -29,13 +29,15 @@ type TranslatorService struct {
 	LLM LLMProvider
 	FS  TranslationFileSystemProvider
 	DB  *sql.DB
+	Job *JobService
 }
 
-func NewTranslatorService(llm LLMProvider, fs TranslationFileSystemProvider, db *sql.DB) *TranslatorService {
+func NewTranslatorService(llm LLMProvider, fs TranslationFileSystemProvider, db *sql.DB, job *JobService) *TranslatorService {
 	return &TranslatorService{
 		LLM: llm,
 		FS:  fs,
 		DB:  db,
+		Job: job,
 	}
 }
 
@@ -97,7 +99,6 @@ func (s *TranslatorService) PreFlight(inputPath string, model string, targetLang
 
 	promptPrice, completionPrice, err := s.LLM.GetModelPricing(model)
 	if err != nil {
-		utils.LogInfo("translate", "warn", "Could not fetch dynamic pricing, defaulting to 0", map[string]any{"model": model})
 		promptPrice = 0
 		completionPrice = 0
 	}
@@ -114,27 +115,27 @@ func (s *TranslatorService) PreFlight(inputPath string, model string, targetLang
 	}, nil
 }
 
-func (s *TranslatorService) ProcessSubtitleFile(inputPath, model, outputPath, apiKey, targetLangCode, presetAlias string, removeSDH bool, contextData string) error {
+func (s *TranslatorService) ProcessSubtitleFile(jobID, inputPath, model, outputPath, apiKey, targetLangCode, presetAlias string, removeSDH bool, contextData string) error {
 	if apiKey == "" {
 		return fmt.Errorf("apiKey is empty before starting translation")
 	}
 
-	utils.LogInfo("translate", "info", "Starting translation process", map[string]any{
-		"file": filepath.Base(inputPath),
-		"lang": targetLangCode,
-	})
-	utils.SendSSE("info", "translate", "Starting subtitle translation...", map[string]any{"file": filepath.Base(inputPath)})
+	utils.LogInfo("translate", "info", "Starting translation process", map[string]any{"job_id": jobID, "file": filepath.Base(inputPath)})
+	utils.SendSSE("info", "translate", "Starting subtitle translation...", map[string]any{"job_id": jobID})
 
 	ctxConfig, err := s.getTranslationContext(targetLangCode, presetAlias, contextData)
 	if err != nil {
-		utils.LogError("translate", "Failed to fetch translation context", map[string]any{"error": err.Error()})
-		utils.SendSSE("error", "translate", "Failed to load translation settings.", nil)
 		return err
+	}
+
+	promptPrice, completionPrice, err := s.LLM.GetModelPricing(model)
+	if err == nil {
+		ctxConfig.PromptPrice = promptPrice
+		ctxConfig.CompletionPrice = completionPrice
 	}
 
 	rawText, err := s.FS.ReadFile(inputPath)
 	if err != nil {
-		utils.LogError("translate", "Failed to read subtitle file", map[string]any{"error": err.Error()})
 		return fmt.Errorf("error reading file: %w", err)
 	}
 
@@ -156,52 +157,49 @@ func (s *TranslatorService) ProcessSubtitleFile(inputPath, model, outputPath, ap
 		blocks = parser.RemoveSDH(blocks)
 	}
 	if len(blocks) == 0 {
-		return fmt.Errorf("no valid subtitle found after parsing and filtering")
+		return fmt.Errorf("no valid subtitle found after parsing")
 	}
 
-	uncachedIndices, originalTexts := s.applyTranslationMemory(blocks, targetLangCode, presetAlias)
+	s.Job.UpdateTotalLines(jobID, len(blocks))
 
-	utils.LogInfo("translate", "info", "Memory cache applied", map[string]any{
-		"total_blocks":  len(blocks),
-		"cached_blocks": len(blocks) - len(uncachedIndices),
-		"to_translate":  len(uncachedIndices),
-	})
+	uncachedIndices, originalTexts := s.applyTranslationMemory(blocks, targetLangCode, presetAlias)
+	cachedCount := len(blocks) - len(uncachedIndices)
+
+	if cachedCount > 0 {
+		s.Job.IncrementProgress(jobID, cachedCount, 0, 0, 0)
+	}
 
 	batches := s.createBatches(blocks, uncachedIndices, ctxConfig.MaxChars)
 
 	if len(batches) > 0 {
-		utils.SendSSE("info", "translate", "Communicating with AI model...", map[string]any{"total_batches": len(batches)})
-
-		err = s.processTranslationBatches(batches, blocks, originalTexts, model, apiKey, ctxConfig)
+		err = s.processTranslationBatches(jobID, batches, blocks, originalTexts, model, apiKey, ctxConfig)
 		if err != nil {
-			utils.LogError("translate", "Batch processing failed", map[string]any{"error": err.Error()})
-			utils.SendSSE("error", "translate", "Translation process failed.", nil)
 			return err
 		}
 	}
 
 	err = s.buildAndSaveSubtitle(ext, outputPath, blocks, assDoc, vttHeader, targetLangCode)
 	if err != nil {
-		utils.LogError("translate", "Failed to save final subtitle", map[string]any{"error": err.Error()})
-		utils.SendSSE("error", "translate", "Failed to save output file.", nil)
 		return err
 	}
 
-	utils.LogInfo("translate", "success", "Translation finished successfully", map[string]any{"output": outputPath})
-	utils.SendSSE("success", "translate", "Translation finished successfully!", map[string]any{"output": filepath.Base(outputPath)})
+	utils.LogInfo("translate", "success", "Translation finished", map[string]any{"job_id": jobID})
+	utils.SendSSE("success", "translate", "Translation finished successfully!", map[string]any{"job_id": jobID, "output": filepath.Base(outputPath)})
 
 	return nil
 }
 
 type TranslationContext struct {
-	SystemPrompt   string
-	MaxChars       int
-	TargetLangName string
-	MaxRetries     int
-	Concurrency    int
-	BaseRetryDelay int
-	PresetAlias    string
-	TargetLangCode string
+	SystemPrompt    string
+	MaxChars        int
+	TargetLangName  string
+	MaxRetries      int
+	Concurrency     int
+	BaseRetryDelay  int
+	PresetAlias     string
+	TargetLangCode  string
+	PromptPrice     float64
+	CompletionPrice float64
 }
 
 func (s *TranslatorService) getTranslationContext(targetLangCode, presetAlias, contextData string) (TranslationContext, error) {
@@ -284,7 +282,7 @@ func (s *TranslatorService) createBatches(blocks []models.SubtitleBlock, uncache
 	return batches
 }
 
-func (s *TranslatorService) processTranslationBatches(batches [][]int, blocks []models.SubtitleBlock, originalTexts map[int]string, model, apiKey string, ctxConfig TranslationContext) error {
+func (s *TranslatorService) processTranslationBatches(jobID string, batches [][]int, blocks []models.SubtitleBlock, originalTexts map[int]string, model, apiKey string, ctxConfig TranslationContext) error {
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	var translationErr error
@@ -317,20 +315,17 @@ func (s *TranslatorService) processTranslationBatches(batches [][]int, blocks []
 			joinedText := strings.Join(texts, separator)
 
 			var translatedText string
+			var pTokens, cTokens int
 			var err error
 			backoff := time.Duration(ctxConfig.BaseRetryDelay) * time.Second
 
 			for attempt := 1; attempt <= ctxConfig.MaxRetries; attempt++ {
-				translatedText, err = s.LLM.TranslateText(joinedText, model, apiKey, ctxConfig.TargetLangName, ctxConfig.SystemPrompt)
+				translatedText, pTokens, cTokens, err = s.LLM.TranslateText(joinedText, model, apiKey, ctxConfig.TargetLangName, ctxConfig.SystemPrompt)
 				if err == nil {
 					break
 				}
 
-				utils.LogInfo("translate", "warn", "Batch translation failed, retrying...", map[string]any{
-					"attempt": attempt,
-					"error":   err.Error(),
-				})
-
+				utils.LogInfo("translate", "warn", "Batch translation failed, retrying...", map[string]any{"attempt": attempt, "error": err.Error()})
 				if attempt < ctxConfig.MaxRetries {
 					time.Sleep(backoff)
 					backoff *= 2
@@ -373,21 +368,17 @@ func (s *TranslatorService) processTranslationBatches(batches [][]int, blocks []
 					hashBytes := sha256.Sum256([]byte(hashInput))
 					hashStr := hex.EncodeToString(hashBytes[:])
 
-					_, err := s.DB.Exec(`
-						INSERT OR IGNORE INTO translation_memory (hash, source_text, translated_text, target_lang, preset) 
-						VALUES (?, ?, ?, ?, ?)`,
-						hashStr, origText, finalTranslatedText, ctxConfig.TargetLangCode, ctxConfig.PresetAlias,
-					)
-
-					if err != nil {
-						utils.LogError("translate", "Failed to cache translation memory", map[string]any{"error": err.Error(), "hash": hashStr})
-					}
+					s.DB.Exec(`INSERT OR IGNORE INTO translation_memory (hash, source_text, translated_text, target_lang, preset) VALUES (?, ?, ?, ?, ?)`, hashStr, origText, finalTranslatedText, ctxConfig.TargetLangCode, ctxConfig.PresetAlias)
 				}
 			}
+
+			batchCost := (float64(pTokens) * ctxConfig.PromptPrice) + (float64(cTokens) * ctxConfig.CompletionPrice)
+			s.Job.IncrementProgress(jobID, len(indices), pTokens, cTokens, batchCost)
 
 			completedBatches++
 			percent := (completedBatches * 100) / totalBatches
 			utils.SendSSE("progress", "translate", fmt.Sprintf("Translating batch %d of %d (%d%%)", completedBatches, totalBatches, percent), map[string]any{
+				"job_id":  jobID,
 				"current": completedBatches,
 				"total":   totalBatches,
 				"percent": percent,
@@ -406,13 +397,11 @@ func (s *TranslatorService) buildAndSaveSubtitle(ext, outputPath string, blocks 
 	switch ext {
 	case ".ass", ".ssa":
 		newTitle := fmt.Sprintf("Title: [BakaSub-AI] %s", targetLang)
-
 		if strings.Contains(assDoc.Header, "[Script Info]") {
 			assDoc.Header = strings.Replace(assDoc.Header, "[Script Info]", "[Script Info]\n"+newTitle, 1)
 		} else {
 			assDoc.Header = "[Script Info]\n" + newTitle + "\n" + assDoc.Header
 		}
-
 		outputText = parser.BuildASS(assDoc, blocks)
 	case ".vtt":
 		outputText = parser.BuildVTT(vttHeader, blocks)

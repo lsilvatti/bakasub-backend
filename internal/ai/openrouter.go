@@ -126,7 +126,7 @@ func (s *OpenRouterService) GetModelPricing(modelID string) (float64, float64, e
 	return promptCost, completionCost, nil
 }
 
-func (s *OpenRouterService) TranslateText(text string, model string, apiKey string, targetLangName string, systemPrompt string) (string, error) {
+func (s *OpenRouterService) TranslateText(text string, model string, apiKey string, targetLangName string, systemPrompt string) (string, int, int, error) {
 	url := "https://openrouter.ai/api/v1/chat/completions"
 
 	reqBody := RequestBody{
@@ -145,12 +145,12 @@ func (s *OpenRouterService) TranslateText(text string, model string, apiKey stri
 
 	jsonData, err := json.Marshal(reqBody)
 	if err != nil {
-		return "", err
+		return "", 0, 0, err
 	}
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return "", err
+		return "", 0, 0, err
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -158,28 +158,28 @@ func (s *OpenRouterService) TranslateText(text string, model string, apiKey stri
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return "", err
+		return "", 0, 0, err
 	}
 	defer resp.Body.Close()
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("error reading response body: %v", err)
+		return "", 0, 0, fmt.Errorf("error reading response body: %v", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("OpenRouter API error (Status %d): %s", resp.StatusCode, string(bodyBytes))
+		return "", 0, 0, fmt.Errorf("OpenRouter API error (Status %d): %s", resp.StatusCode, string(bodyBytes))
 	}
 
 	var resBody ResponseBody
 	if err := json.Unmarshal(bodyBytes, &resBody); err != nil {
-		return "", fmt.Errorf("error unmarshaling response: %v | Body: %s", err, string(bodyBytes))
+		return "", 0, 0, fmt.Errorf("error unmarshaling response: %v | Body: %s", err, string(bodyBytes))
 	}
 
 	if len(resBody.Choices) == 0 || resBody.Choices[0].Message.Content == "" {
 		fmt.Printf("--- WARNING: Empty AI Response ---\nFull Body: %s\n-------------------\n", string(bodyBytes))
-		return "", fmt.Errorf("no translation found (possible content filter)")
+		return "", 0, 0, fmt.Errorf("no translation found (possible content filter)")
 	}
 
-	return resBody.Choices[0].Message.Content, nil
+	return resBody.Choices[0].Message.Content, resBody.Usage.PromptTokens, resBody.Usage.CompletionTokens, nil
 }

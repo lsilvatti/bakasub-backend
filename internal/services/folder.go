@@ -221,3 +221,26 @@ func (s *FolderService) ListSubtitleFiles(folderPath string) ([]string, error) {
 
 	return subtitleFiles, nil
 }
+
+func (s *FolderService) ExploreFolder(dirPath string) ([]models.FileNode, error) {
+	entries, err := os.ReadDir(dirPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var nodes []models.FileNode
+	for _, entry := range entries {
+		if entry.Name()[0] == '.' {
+			continue
+		}
+
+		nodes = append(nodes, models.FileNode{
+			Name: entry.Name(),
+			// É AQUI A MÁGICA, PRESTE ATENÇÃO:
+			Path:        filepath.Join(dirPath, entry.Name()),
+			IsDirectory: entry.IsDir(),
+		})
+	}
+
+	return nodes, nil
+}

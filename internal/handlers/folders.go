@@ -14,6 +14,7 @@ type FolderProcessor interface {
 	IsFile(path string) bool
 	ListVideoFiles(path string) ([]string, error)
 	ListSubtitleFiles(path string) ([]string, error)
+	ExploreFolder(path string) ([]models.FileNode, error)
 }
 
 type FolderHandler struct {
@@ -128,4 +129,30 @@ func (h *FolderHandler) ListSubtitleFiles(w http.ResponseWriter, r *http.Request
 	})
 
 	utils.JSON(w, http.StatusOK, "success", "Subtitle files listed", files)
+}
+
+func (h *FolderHandler) ExploreFolder(w http.ResponseWriter, r *http.Request) {
+	folderPath := r.URL.Query().Get("path")
+
+	if folderPath == "" {
+		utils.LogError("folder_handler", "Missing 'path' query parameter for ExploreFolder", nil)
+		utils.Error(w, http.StatusBadRequest, "Missing 'path' query parameter")
+		return
+	}
+
+	nodes, err := h.Service.ExploreFolder(folderPath)
+	if err != nil {
+		utils.LogError("folder_handler", "Failed to explore folder via service", map[string]any{
+			"path":  folderPath,
+			"error": err.Error(),
+		})
+		utils.Error(w, http.StatusInternalServerError, "Failed to explore folder: "+err.Error())
+		return
+	}
+
+	if nodes == nil {
+		nodes = []models.FileNode{}
+	}
+
+	utils.JSON(w, http.StatusOK, "success", "Folder explored", nodes)
 }

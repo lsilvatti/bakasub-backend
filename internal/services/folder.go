@@ -235,8 +235,7 @@ func (s *FolderService) ExploreFolder(dirPath string) ([]models.FileNode, error)
 		}
 
 		nodes = append(nodes, models.FileNode{
-			Name: entry.Name(),
-			// É AQUI A MÁGICA, PRESTE ATENÇÃO:
+			Name:        entry.Name(),
 			Path:        filepath.Join(dirPath, entry.Name()),
 			IsDirectory: entry.IsDir(),
 		})

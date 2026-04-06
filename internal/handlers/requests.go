@@ -89,6 +89,10 @@ type UpdateConfigRequest struct {
 	LogRetentionDays    int    `json:"log_retention_days" validate:"required"`
 }
 
+type UpdateFavoritesRequest struct {
+	FavoriteModels []string `json:"favorite_models" validate:"required"`
+}
+
 func (r *AddPresetRequest) ToModel() models.TranslationPreset {
 	return models.TranslationPreset{
 		Alias:        r.Alias,

@@ -41,7 +41,9 @@ func NewTranslatorService(llm LLMProvider, fs TranslationFileSystemProvider, db 
 	}
 }
 
-var separatorRegex = regexp.MustCompile(`\s*---NEXT---\s*`)
+var separatorRegex = regexp.MustCompile(`(?:\\N|\s)*---NEXT---(?:\\N|\s)*`)
+var looseSeparatorRegex = regexp.MustCompile(`(?:\\N|\n)\s*-{3,}\s*(?:\\N|\n)`)
+var langSuffixRe = regexp.MustCompile(`[._-]([a-zA-Z]{2,3}(?:-[a-zA-Z]{2,3})?)$`)
 
 func (s *TranslatorService) PreFlight(inputPath string, model string, targetLangCode string, presetAlias string, removeSDH bool) (*models.JobEstimate, error) {
 	rawText, err := s.FS.ReadFile(inputPath)
@@ -240,8 +242,7 @@ func (s *TranslatorService) detectSourceLanguage(inputPath string) string {
 	ext := filepath.Ext(base)
 	name := strings.TrimSuffix(base, ext)
 
-	re := regexp.MustCompile(`[._-]([a-zA-Z]{2,3}(?:-[a-zA-Z]{2,3})?)$`)
-	matches := re.FindStringSubmatch(name)
+	matches := langSuffixRe.FindStringSubmatch(name)
 	if len(matches) < 2 {
 		return ""
 	}
@@ -373,18 +374,43 @@ func (s *TranslatorService) processTranslationBatches(jobID string, batches [][]
 			}
 
 			translatedLines := separatorRegex.Split(translatedText, -1)
-			if len(translatedLines) > 0 && strings.TrimSpace(translatedLines[len(translatedLines)-1]) == "" {
+			for len(translatedLines) > 0 && strings.TrimSpace(translatedLines[0]) == "" {
+				translatedLines = translatedLines[1:]
+			}
+			for len(translatedLines) > 0 && strings.TrimSpace(translatedLines[len(translatedLines)-1]) == "" {
 				translatedLines = translatedLines[:len(translatedLines)-1]
 			}
 
 			if len(translatedLines) != len(indices) {
-				cleanText := separatorRegex.ReplaceAllString(translatedText, "\n\n")
-				fallbackLines := strings.Split(strings.TrimSpace(cleanText), "\n\n")
-				translatedLines = make([]string, len(indices))
-				for i := range fallbackLines {
-					if i < len(indices) {
-						translatedLines[i] = fallbackLines[i]
+				utils.LogInfo("translate", "warn", "Separator count mismatch after strict split", map[string]any{
+					"expected": len(indices),
+					"got":      len(translatedLines),
+				})
+
+				// Try loose separator: catches LLM deviations like \N---\N
+				altLines := looseSeparatorRegex.Split(translatedText, -1)
+				for len(altLines) > 0 && strings.TrimSpace(altLines[0]) == "" {
+					altLines = altLines[1:]
+				}
+				for len(altLines) > 0 && strings.TrimSpace(altLines[len(altLines)-1]) == "" {
+					altLines = altLines[:len(altLines)-1]
+				}
+				if len(altLines) == len(indices) {
+					translatedLines = altLines
+				} else {
+					// Final fallback: split by blank lines without regex replacement
+					fallbackLines := strings.Split(strings.TrimSpace(translatedText), "\n\n")
+					translatedLines = make([]string, len(indices))
+					for i := range fallbackLines {
+						if i < len(indices) {
+							translatedLines[i] = fallbackLines[i]
+						}
 					}
+					utils.LogInfo("translate", "warn", "Used fallback blank-line splitting", map[string]any{
+						"expected":     len(indices),
+						"got_loose":    len(altLines),
+						"got_fallback": len(fallbackLines),
+					})
 				}
 			}
 

@@ -12,6 +12,7 @@ import (
 var karaokeRe = regexp.MustCompile(`(?i)\{\\[k][fo]?[0-9.]+[^}]*\}`)
 var prefixReASS = regexp.MustCompile(`^(?:\{[^}]+\}|\s)+`)
 var suffixReASS = regexp.MustCompile(`(?:\{[^}]+\}|\s)+$`)
+var nonTranslatableStyleRe = regexp.MustCompile(`(?i)\b(?:romaji|kanji|song|sign|op|ed)\b`)
 
 type ASSDocument struct {
 	Header string
@@ -38,6 +39,11 @@ func ParseASS(rawText string) (*ASSDocument, []models.SubtitleBlock) {
 	lines := strings.Split(strings.ReplaceAll(rawText, "\r\n", "\n"), "\n")
 
 	for _, line := range lines {
+		if strings.HasPrefix(line, "Comment:") {
+			doc.Lines = append(doc.Lines, &ASSLine{IsTranslatable: false, Raw: line})
+			continue
+		}
+
 		if !strings.HasPrefix(line, "Dialogue:") {
 			if strings.HasPrefix(line, "Title:") {
 				continue
@@ -56,10 +62,10 @@ func ParseASS(rawText string) (*ASSDocument, []models.SubtitleBlock) {
 		text := parts[9]
 		style := strings.ToLower(parts[3])
 
-		isSongOrRomaji := strings.Contains(style, "romaji") || strings.Contains(style, "kanji") || strings.Contains(style, "op") || strings.Contains(style, "ed") || strings.Contains(style, "song")
+		isNonTranslatable := nonTranslatableStyleRe.MatchString(style)
 		hasKaraoke := karaokeRe.MatchString(text)
 
-		if isSongOrRomaji || hasKaraoke {
+		if isNonTranslatable || hasKaraoke {
 			doc.Lines = append(doc.Lines, &ASSLine{
 				IsTranslatable: false,
 				Raw:            line,

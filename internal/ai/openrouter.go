@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -132,6 +133,9 @@ func (s *OpenRouterService) TranslateText(text string, model string, apiKey stri
 	taskInstruction := fmt.Sprintf("Translate the input to %s.", targetLangName)
 	if sourceLangName != "" {
 		taskInstruction = fmt.Sprintf("Translate the input from %s to %s.", sourceLangName, targetLangName)
+	}
+	if strings.Contains(text, "---NEXT---") {
+		taskInstruction += " The input contains multiple subtitle items separated by ---NEXT---. Translate each item individually and preserve the ---NEXT--- separator between each translated item exactly as it appears in the input. Do not merge, reorder, or skip any items."
 	}
 
 	reqBody := RequestBody{

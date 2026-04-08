@@ -1,13 +1,16 @@
 package services
 
 import (
+	"bakasub-backend/internal/ai"
 	"bakasub-backend/internal/models"
 	"bakasub-backend/internal/parser"
 	"bakasub-backend/internal/utils"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"net/http"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -45,7 +48,7 @@ var separatorRegex = regexp.MustCompile(`(?:\\N|\s)*---NEXT---(?:\\N|\s)*`)
 var looseSeparatorRegex = regexp.MustCompile(`(?:\\N|\n)\s*-{3,}\s*(?:\\N|\n)`)
 var langSuffixRe = regexp.MustCompile(`[._-]([a-zA-Z]{2,3}(?:-[a-zA-Z]{2,3})?)$`)
 
-func (s *TranslatorService) PreFlight(inputPath string, model string, targetLangCode string, presetAlias string, removeSDH bool) (*models.JobEstimate, error) {
+func (s *TranslatorService) PreFlight(inputPath string, model string, targetLangCode string, presetAlias string, removeSDH bool, contextData string) (*models.JobEstimate, error) {
 	rawText, err := s.FS.ReadFile(inputPath)
 	if err != nil {
 		return nil, fmt.Errorf("error reading file for preflight: %w", err)
@@ -72,10 +75,12 @@ func (s *TranslatorService) PreFlight(inputPath string, model string, targetLang
 		return nil, fmt.Errorf("no valid subtitle found to estimate")
 	}
 
-	ctxConfig, err := s.getTranslationContext(targetLangCode, presetAlias, "")
+	ctxConfig, err := s.getTranslationContext(targetLangCode, presetAlias, contextData)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching translation context for preflight: %w", err)
 	}
+
+	sourceLanguage := s.detectSourceLanguage(inputPath)
 
 	uncachedIndices, _ := s.applyTranslationMemory(blocks, targetLangCode, presetAlias)
 
@@ -107,6 +112,9 @@ func (s *TranslatorService) PreFlight(inputPath string, model string, targetLang
 
 	estCost := (float64(estInputTokens) * promptPrice) + (float64(estOutputTokens) * completionPrice)
 
+	var presetName string
+	_ = s.DB.QueryRow("SELECT name FROM translation_presets WHERE alias = $1", presetAlias).Scan(&presetName)
+
 	return &models.JobEstimate{
 		TotalLines:       totalLines,
 		CachedLines:      cachedLines,
@@ -114,6 +122,12 @@ func (s *TranslatorService) PreFlight(inputPath string, model string, targetLang
 		TotalBatches:     totalBatches,
 		EstimatedTokens:  estInputTokens + estOutputTokens,
 		EstimatedCostUSD: estCost,
+		IsFreeModel:      ai.IsModelFree(model),
+		SystemPrompt:     ctxConfig.SystemPrompt,
+		TargetLanguage:   ctxConfig.TargetLangName,
+		SourceLanguage:   sourceLanguage,
+		PresetName:       presetName,
+		BatchSize:        ctxConfig.MaxChars,
 	}, nil
 }
 
@@ -356,6 +370,28 @@ func (s *TranslatorService) createBatches(blocks []models.SubtitleBlock, uncache
 }
 
 func (s *TranslatorService) processTranslationBatches(jobID string, batches [][]int, blocks []models.SubtitleBlock, originalTexts map[int]string, model, apiKey string, ctxConfig TranslationContext) error {
+	isFree := ai.IsModelFree(model)
+
+	if isFree {
+		if ctxConfig.Concurrency > 1 {
+			ctxConfig.Concurrency = 1
+		}
+		if ctxConfig.BaseRetryDelay < 10 {
+			ctxConfig.BaseRetryDelay = 10
+		}
+		if ctxConfig.MaxRetries > 2 {
+			ctxConfig.MaxRetries = 2
+		}
+		utils.LogInfo("translate", "warn", "Free model detected — using reduced concurrency (1), extended backoff (10s) and lower max retries (2)", map[string]any{
+			"job_id": jobID,
+			"model":  model,
+		})
+		utils.SendSSE("warn", "translate", "Free model detected — using reduced concurrency (1) and extended backoff (10s). Free models have strict rate limits; consider using a paid model for large files.", map[string]any{
+			"job_id": jobID,
+			"model":  model,
+		})
+	}
+
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	var translationErr error
@@ -396,6 +432,34 @@ func (s *TranslatorService) processTranslationBatches(jobID string, batches [][]
 				translatedText, pTokens, cTokens, err = s.LLM.TranslateText(joinedText, model, apiKey, ctxConfig.SourceLangName, ctxConfig.TargetLangName, ctxConfig.SystemPrompt)
 				if err == nil {
 					break
+				}
+
+				var apiErr *ai.APIError
+				if errors.As(err, &apiErr) {
+					if !apiErr.Retryable {
+						utils.LogInfo("translate", "error", "Fatal API error, aborting without retry", map[string]any{
+							"status": apiErr.StatusCode,
+							"error":  apiErr.Message,
+						})
+						break
+					}
+
+					if apiErr.StatusCode == http.StatusTooManyRequests && isFree {
+						err = fmt.Errorf("[Free Model] rate limit exceeded (HTTP 429). Free models have very strict rate limits — try reducing batch size, using a paid model, or waiting a few minutes. Details: %s", apiErr.Message)
+						utils.LogInfo("translate", "error", "Free model rate limited, failing immediately", map[string]any{
+							"model": model,
+							"error": apiErr.Message,
+						})
+						utils.SendSSE("warn", "translate", "Free model rate limit hit (429). Free models have strict limits — consider using a paid model.", map[string]any{
+							"job_id": jobID,
+							"model":  model,
+						})
+						break
+					}
+
+					if apiErr.RetryAfter > 0 {
+						backoff = apiErr.RetryAfter
+					}
 				}
 
 				utils.LogInfo("translate", "warn", "Batch translation failed, retrying...", map[string]any{"attempt": attempt, "error": err.Error()})

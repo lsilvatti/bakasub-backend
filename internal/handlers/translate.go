@@ -16,7 +16,7 @@ import (
 
 type SubtitleTranslator interface {
 	ProcessSubtitleFile(jobID string, inputPath string, model string, outputPath string, apiKey string, targetLang string, preset string, removeSDH bool, context string) error
-	PreFlight(inputPath string, model string, targetLang string, preset string, removeSDH bool) (*models.JobEstimate, error)
+	PreFlight(inputPath string, model string, targetLang string, preset string, removeSDH bool, context string) (*models.JobEstimate, error)
 }
 
 type TranslateHandler struct {
@@ -37,7 +37,7 @@ func (h *TranslateHandler) PreFlight(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	estimate, err := h.Translator.PreFlight(reqData.FilePath, reqData.Model, reqData.TargetLang, reqData.Preset, reqData.RemoveSDH)
+	estimate, err := h.Translator.PreFlight(reqData.FilePath, reqData.Model, reqData.TargetLang, reqData.Preset, reqData.RemoveSDH, reqData.Context)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Analysis failed: "+err.Error())
 		return

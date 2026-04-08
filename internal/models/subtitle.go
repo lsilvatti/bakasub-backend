@@ -19,4 +19,10 @@ type JobEstimate struct {
 	TotalBatches     int     `json:"total_batches"`
 	EstimatedTokens  int     `json:"estimated_tokens"`
 	EstimatedCostUSD float64 `json:"estimated_cost_usd"`
+	IsFreeModel      bool    `json:"is_free_model"`
+	SystemPrompt     string  `json:"system_prompt"`
+	TargetLanguage   string  `json:"target_language"`
+	SourceLanguage   string  `json:"source_language"`
+	PresetName       string  `json:"preset_name"`
+	BatchSize        int     `json:"batch_size"`
 }

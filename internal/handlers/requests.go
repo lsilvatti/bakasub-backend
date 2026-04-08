@@ -17,6 +17,7 @@ type PreFlightRequest struct {
 	TargetLang string `json:"targetLang" validate:"required"`
 	Preset     string `json:"preset" validate:"required"`
 	RemoveSDH  bool   `json:"removeSDH"`
+	Context    string `json:"context"`
 }
 type AddFolderRequest struct {
 	Alias string `json:"alias" validate:"required"`

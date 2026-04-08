@@ -12,6 +12,49 @@ import (
 	"time"
 )
 
+// APIError represents a classified error from the OpenRouter API.
+type APIError struct {
+	StatusCode int
+	Retryable  bool
+	Message    string
+	RetryAfter time.Duration
+}
+
+func (e *APIError) Error() string {
+	return e.Message
+}
+
+// IsModelFree returns true if the model ID uses OpenRouter's free tier (suffix ":free").
+func IsModelFree(modelID string) bool {
+	return strings.HasSuffix(modelID, ":free")
+}
+
+// classifyHTTPError builds an APIError from the HTTP response status and headers.
+func classifyHTTPError(resp *http.Response, body []byte) *APIError {
+	apiErr := &APIError{
+		StatusCode: resp.StatusCode,
+		Message:    fmt.Sprintf("OpenRouter API error (Status %d): %s", resp.StatusCode, string(body)),
+	}
+
+	switch resp.StatusCode {
+	case http.StatusTooManyRequests: // 429
+		apiErr.Retryable = true
+		if ra := resp.Header.Get("Retry-After"); ra != "" {
+			if secs, err := strconv.Atoi(ra); err == nil {
+				apiErr.RetryAfter = time.Duration(secs) * time.Second
+			}
+		}
+	case http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout: // 502, 503, 504
+		apiErr.Retryable = true
+	case http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound: // 400, 401, 403, 404
+		apiErr.Retryable = false
+	default:
+		apiErr.Retryable = true
+	}
+
+	return apiErr
+}
+
 type Message struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
@@ -177,7 +220,7 @@ func (s *OpenRouterService) TranslateText(text string, model string, apiKey stri
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return "", 0, 0, fmt.Errorf("OpenRouter API error (Status %d): %s", resp.StatusCode, string(bodyBytes))
+		return "", 0, 0, classifyHTTPError(resp, bodyBytes)
 	}
 
 	var resBody ResponseBody

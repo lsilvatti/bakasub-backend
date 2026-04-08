@@ -8,11 +8,11 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func VideoRoutes(db *sql.DB) chi.Router {
+func VideoRoutes(db *sql.DB, secretKey string) chi.Router {
 	r := chi.NewRouter()
 
 	videoService := services.NewVideoService()
-	configService := services.NewConfigService(db)
+	configService := services.NewConfigService(db, secretKey)
 
 	videoHandler := handlers.VideoHandler{
 		Processor: videoService,

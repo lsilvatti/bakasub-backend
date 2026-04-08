@@ -8,10 +8,10 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func ConfigRoutes(database *sql.DB) chi.Router {
+func ConfigRoutes(database *sql.DB, secretKey string) chi.Router {
 	r := chi.NewRouter()
 
-	configService := services.NewConfigService(database)
+	configService := services.NewConfigService(database, secretKey)
 
 	configHandler := &handlers.ConfigHandler{
 		Service: configService,

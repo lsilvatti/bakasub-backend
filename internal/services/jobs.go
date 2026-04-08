@@ -48,6 +48,11 @@ func (s *JobService) IncrementProgress(id string, lines, pTokens, cTokens int, c
 	return err
 }
 
+func (s *JobService) SetCachedLines(id string, cachedLines int) error {
+	_, err := s.DB.Exec(`UPDATE translation_jobs SET cached_lines = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`, cachedLines, id)
+	return err
+}
+
 func (s *JobService) UpdateStatus(id, status, errorMsg string) error {
 	_, err := s.DB.Exec(`UPDATE translation_jobs SET status = $1, error_message = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3`, status, errorMsg, id)
 	if err != nil {
@@ -61,9 +66,9 @@ func (s *JobService) GetJob(id string) (*models.TranslationJob, error) {
 	var errMsg sql.NullString
 
 	err := s.DB.QueryRow(`
-		SELECT id, status, file_path, target_lang, preset, model, total_lines, processed_lines, prompt_tokens, completion_tokens, cost_usd, error_message, created_at, updated_at 
+		SELECT id, status, file_path, target_lang, preset, model, total_lines, processed_lines, cached_lines, prompt_tokens, completion_tokens, cost_usd, error_message, created_at, updated_at 
 		FROM translation_jobs WHERE id = $1`, id).
-		Scan(&j.ID, &j.Status, &j.FilePath, &j.TargetLang, &j.Preset, &j.Model, &j.TotalLines, &j.ProcessedLines, &j.PromptTokens, &j.CompletionTokens, &j.CostUSD, &errMsg, &j.CreatedAt, &j.UpdatedAt)
+		Scan(&j.ID, &j.Status, &j.FilePath, &j.TargetLang, &j.Preset, &j.Model, &j.TotalLines, &j.ProcessedLines, &j.CachedLines, &j.PromptTokens, &j.CompletionTokens, &j.CostUSD, &errMsg, &j.CreatedAt, &j.UpdatedAt)
 
 	if err != nil {
 		return nil, err
@@ -79,7 +84,7 @@ func (s *JobService) ListJobs(limit, offset int) ([]models.TranslationJob, int, 
 	s.DB.QueryRow("SELECT COUNT(*) FROM translation_jobs").Scan(&total)
 
 	rows, err := s.DB.Query(`
-		SELECT id, status, file_path, target_lang, preset, model, total_lines, processed_lines, prompt_tokens, completion_tokens, cost_usd, error_message, created_at, updated_at 
+		SELECT id, status, file_path, target_lang, preset, model, total_lines, processed_lines, cached_lines, prompt_tokens, completion_tokens, cost_usd, error_message, created_at, updated_at 
 		FROM translation_jobs ORDER BY created_at DESC LIMIT $1 OFFSET $2`, limit, offset)
 
 	if err != nil {
@@ -91,7 +96,7 @@ func (s *JobService) ListJobs(limit, offset int) ([]models.TranslationJob, int, 
 	for rows.Next() {
 		var j models.TranslationJob
 		var errMsg sql.NullString
-		if err := rows.Scan(&j.ID, &j.Status, &j.FilePath, &j.TargetLang, &j.Preset, &j.Model, &j.TotalLines, &j.ProcessedLines, &j.PromptTokens, &j.CompletionTokens, &j.CostUSD, &errMsg, &j.CreatedAt, &j.UpdatedAt); err == nil {
+		if err := rows.Scan(&j.ID, &j.Status, &j.FilePath, &j.TargetLang, &j.Preset, &j.Model, &j.TotalLines, &j.ProcessedLines, &j.CachedLines, &j.PromptTokens, &j.CompletionTokens, &j.CostUSD, &errMsg, &j.CreatedAt, &j.UpdatedAt); err == nil {
 			if errMsg.Valid {
 				j.ErrorMessage = errMsg.String
 			}

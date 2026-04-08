@@ -82,12 +82,17 @@ type UpdatePresetRequest struct {
 }
 
 type UpdateConfigRequest struct {
-	DefaultModel        string `json:"default_model" validate:"required"`
-	DefaultPreset       string `json:"default_preset" validate:"required"`
-	DefaultLanguage     string `json:"default_language"`
-	RemoveSdhDefault    bool   `json:"remove_sdh_default"`
-	VideoTimeoutMinutes int    `json:"video_timeout_minutes" validate:"required"`
-	LogRetentionDays    int    `json:"log_retention_days" validate:"required"`
+	DefaultModel           string `json:"default_model" validate:"required"`
+	DefaultPreset          string `json:"default_preset" validate:"required"`
+	DefaultLanguage        string `json:"default_language"`
+	RemoveSdhDefault       bool   `json:"remove_sdh_default"`
+	VideoTimeoutMinutes    int    `json:"video_timeout_minutes" validate:"required"`
+	LogRetentionDays       int    `json:"log_retention_days" validate:"required"`
+	OpenRouterApiKey       string `json:"openrouter_api_key"`
+	TmdbAccessToken        string `json:"tmdb_access_token"`
+	ConcurrentTranslations int    `json:"concurrent_translations"`
+	MaxRetries             int    `json:"max_retries"`
+	BaseRetryDelay         int    `json:"base_retry_delay"`
 }
 
 type UpdateFavoritesRequest struct {
@@ -138,11 +143,16 @@ func (r *AddFolderRequest) ToModel() models.FolderConfig {
 
 func (r *UpdateConfigRequest) ToModel() models.UserConfig {
 	return models.UserConfig{
-		DefaultModel:        r.DefaultModel,
-		DefaultPreset:       r.DefaultPreset,
-		DefaultLanguage:     r.DefaultLanguage,
-		RemoveSdhDefault:    r.RemoveSdhDefault,
-		VideoTimeoutMinutes: r.VideoTimeoutMinutes,
-		LogRetentionDays:    r.LogRetentionDays,
+		DefaultModel:           r.DefaultModel,
+		DefaultPreset:          r.DefaultPreset,
+		DefaultLanguage:        r.DefaultLanguage,
+		RemoveSdhDefault:       r.RemoveSdhDefault,
+		VideoTimeoutMinutes:    r.VideoTimeoutMinutes,
+		LogRetentionDays:       r.LogRetentionDays,
+		OpenRouterApiKey:       r.OpenRouterApiKey,
+		TmdbAccessToken:        r.TmdbAccessToken,
+		ConcurrentTranslations: r.ConcurrentTranslations,
+		MaxRetries:             r.MaxRetries,
+		BaseRetryDelay:         r.BaseRetryDelay,
 	}
 }

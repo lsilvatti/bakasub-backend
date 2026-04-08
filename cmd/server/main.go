@@ -25,8 +25,12 @@ func main() {
 	}
 
 	if os.Getenv("OPENROUTER_API_KEY") == "" {
-		fmt.Println("FATAL ERROR: OPENROUTER_API_KEY environment variable is not set.")
-		os.Exit(1)
+		fmt.Println("Warning: OPENROUTER_API_KEY environment variable is not set. Set the API key in the Config page instead.")
+	}
+
+	secretKey := os.Getenv("SECRET_KEY")
+	if secretKey == "" {
+		fmt.Println("Warning: SECRET_KEY environment variable is not set. API keys will be stored as plaintext in the database.")
 	}
 
 	dbURL := os.Getenv("DATABASE_URL")
@@ -57,7 +61,7 @@ func main() {
 		MaxAge:           300,
 	}))
 
-	r.Mount("/api/v1/", routes.APIRoutes(database))
+	r.Mount("/api/v1/", routes.APIRoutes(database, secretKey))
 
 	port := ":8080"
 

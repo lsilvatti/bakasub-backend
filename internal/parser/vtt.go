@@ -99,7 +99,7 @@ func BuildVTT(header string, blocks []models.SubtitleBlock) string {
 				prefix = block.Formatting[i].Prefix
 				suffix = block.Formatting[i].Suffix
 			}
-			if i == len(translatedLines)-1 && len(block.Formatting) > 0 {
+			if i == len(translatedLines)-1 && i >= len(block.Formatting) && len(block.Formatting) > 0 {
 				suffix = block.Formatting[len(block.Formatting)-1].Suffix
 			}
 

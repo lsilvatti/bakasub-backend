@@ -171,6 +171,7 @@ func (s *TranslatorService) ProcessSubtitleFile(jobID, inputPath, model, outputP
 
 	if cachedCount > 0 {
 		s.Job.IncrementProgress(jobID, cachedCount, 0, 0, 0)
+		s.Job.SetCachedLines(jobID, cachedCount)
 	}
 
 	batches := s.createBatches(blocks, uncachedIndices, ctxConfig.MaxChars)
@@ -188,7 +189,23 @@ func (s *TranslatorService) ProcessSubtitleFile(jobID, inputPath, model, outputP
 	}
 
 	utils.LogInfo("translate", "success", "Translation finished", map[string]any{"job_id": jobID})
-	utils.SendSSE("success", "translate", "Translation finished successfully!", map[string]any{"job_id": jobID, "output": filepath.Base(outputPath)})
+
+	successData := map[string]any{
+		"job_id": jobID,
+		"output": filepath.Base(outputPath),
+	}
+	if job, err := s.Job.GetJob(jobID); err == nil {
+		successData["total_lines"] = job.TotalLines
+		successData["processed_lines"] = job.ProcessedLines
+		successData["cached_lines"] = job.CachedLines
+		successData["prompt_tokens"] = job.PromptTokens
+		successData["completion_tokens"] = job.CompletionTokens
+		successData["cost_usd"] = job.CostUSD
+		successData["model"] = job.Model
+		successData["created_at"] = job.CreatedAt
+		successData["updated_at"] = job.UpdatedAt
+	}
+	utils.SendSSE("success", "translate", "Translation finished successfully!", successData)
 
 	return nil
 }
@@ -265,21 +282,45 @@ func (s *TranslatorService) detectSourceLanguage(inputPath string) string {
 }
 
 func (s *TranslatorService) applyTranslationMemory(blocks []models.SubtitleBlock, targetLangCode, presetAlias string) ([]int, map[int]string) {
-	var uncachedIndices []int
 	originalTexts := make(map[int]string)
+	if len(blocks) == 0 {
+		return nil, originalTexts
+	}
 
+	// Compute all hashes upfront
+	blockHashes := make([]string, len(blocks))
 	for i, block := range blocks {
 		originalTexts[i] = block.Text
-
 		hashInput := block.Text + "|" + targetLangCode + "|" + presetAlias
 		hashBytes := sha256.Sum256([]byte(hashInput))
-		hashStr := hex.EncodeToString(hashBytes[:])
+		blockHashes[i] = hex.EncodeToString(hashBytes[:])
+	}
 
-		var cachedTranslation string
-		err := s.DB.QueryRow("SELECT translated_text FROM translation_memory WHERE hash = $1", hashStr).Scan(&cachedTranslation)
+	// Single batch query instead of N individual queries
+	placeholders := make([]string, len(blockHashes))
+	args := make([]any, len(blockHashes))
+	for i, h := range blockHashes {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+		args[i] = h
+	}
+	query := fmt.Sprintf("SELECT hash, translated_text FROM translation_memory WHERE hash IN (%s)", strings.Join(placeholders, ","))
 
-		if err == nil && cachedTranslation != "" {
-			blocks[i].Text = cachedTranslation
+	cachedMap := make(map[string]string)
+	rows, err := s.DB.Query(query, args...)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var h, t string
+			if rows.Scan(&h, &t) == nil && t != "" {
+				cachedMap[h] = t
+			}
+		}
+	}
+
+	var uncachedIndices []int
+	for i := range blocks {
+		if trans, ok := cachedMap[blockHashes[i]]; ok {
+			blocks[i].Text = trans
 		} else {
 			uncachedIndices = append(uncachedIndices, i)
 		}

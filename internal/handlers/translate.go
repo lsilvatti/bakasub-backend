@@ -3,7 +3,6 @@ package handlers
 import (
 	"fmt"
 	"net/http"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -23,6 +22,7 @@ type SubtitleTranslator interface {
 type TranslateHandler struct {
 	Translator SubtitleTranslator
 	JobService *services.JobService
+	Config     ConfigService
 }
 
 func (h *TranslateHandler) PreFlight(w http.ResponseWriter, r *http.Request) {
@@ -58,9 +58,14 @@ func (h *TranslateHandler) Translate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	apiKey := os.Getenv("OPENROUTER_API_KEY")
+	cfg, err := h.Config.GetConfig()
+	if err != nil {
+		utils.Error(w, http.StatusInternalServerError, "Failed to retrieve configuration")
+		return
+	}
+	apiKey := cfg.OpenRouterApiKey
 	if apiKey == "" {
-		utils.Error(w, http.StatusInternalServerError, "Missing API configuration")
+		utils.Error(w, http.StatusBadRequest, "OpenRouter API key not configured. Set it in the Config page.")
 		return
 	}
 

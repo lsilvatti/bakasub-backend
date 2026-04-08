@@ -8,7 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func APIRoutes(database *sql.DB) chi.Router {
+func APIRoutes(database *sql.DB, secretKey string) chi.Router {
 	r := chi.NewRouter()
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -16,9 +16,9 @@ func APIRoutes(database *sql.DB) chi.Router {
 		w.Write([]byte("OK"))
 	})
 
-	r.Mount("/openrouter", OpenRouterTranslateRoutes(database))
-	r.Mount("/video", VideoRoutes(database))
-	r.Mount("/config", ConfigRoutes(database))
+	r.Mount("/openrouter", OpenRouterTranslateRoutes(database, secretKey))
+	r.Mount("/video", VideoRoutes(database, secretKey))
+	r.Mount("/config", ConfigRoutes(database, secretKey))
 	r.Mount("/favorites", FavoritesRoutes(database))
 	r.Mount("/folders", FoldersRoutes(database))
 	r.Mount("/presets", PresetRoutes(database))

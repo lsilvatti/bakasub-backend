@@ -11,6 +11,7 @@ type TranslationJob struct {
 	Model            string    `json:"model"`
 	TotalLines       int       `json:"total_lines"`
 	ProcessedLines   int       `json:"processed_lines"`
+	CachedLines      int       `json:"cached_lines"`
 	PromptTokens     int       `json:"prompt_tokens"`
 	CompletionTokens int       `json:"completion_tokens"`
 	CostUSD          float64   `json:"cost_usd"`

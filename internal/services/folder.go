@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -222,15 +223,15 @@ func (s *FolderService) ListSubtitleFiles(folderPath string) ([]string, error) {
 	return subtitleFiles, nil
 }
 
-func (s *FolderService) ExploreFolder(dirPath string) ([]models.FileNode, error) {
+func (s *FolderService) ExploreFolder(dirPath string) (models.ExploreResponse, error) {
 	entries, err := os.ReadDir(dirPath)
 	if err != nil {
-		return nil, err
+		return models.ExploreResponse{}, err
 	}
 
-	var nodes []models.FileNode
+	nodes := make([]models.FileNode, 0)
 	for _, entry := range entries {
-		if entry.Name()[0] == '.' {
+		if len(entry.Name()) > 0 && entry.Name()[0] == '.' {
 			continue
 		}
 
@@ -241,5 +242,36 @@ func (s *FolderService) ExploreFolder(dirPath string) ([]models.FileNode, error)
 		})
 	}
 
-	return nodes, nil
+	// Determine parent path — filepath.Dir returns the same path at the filesystem root
+	var parentPath *string
+	parent := filepath.Dir(dirPath)
+	cleanDir := filepath.Clean(dirPath)
+	if filepath.Clean(parent) != cleanDir {
+		parentPath = &parent
+	}
+
+	folderName := filepath.Base(dirPath)
+	if folderName == "." || folderName == string(filepath.Separator) {
+		folderName = dirPath
+	}
+
+	return models.ExploreResponse{
+		Items:      nodes,
+		ParentPath: parentPath,
+		FolderName: folderName,
+	}, nil
+}
+
+func (s *FolderService) GetRoots() []models.RootEntry {
+	if runtime.GOOS == "windows" {
+		roots := make([]models.RootEntry, 0)
+		for _, drive := range "ABCDEFGHIJKLMNOPQRSTUVWXYZ" {
+			path := string(drive) + ":\\"
+			if _, err := os.Stat(path); err == nil {
+				roots = append(roots, models.RootEntry{Name: path, Path: path})
+			}
+		}
+		return roots
+	}
+	return []models.RootEntry{{Name: "/", Path: "/"}}
 }

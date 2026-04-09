@@ -20,6 +20,7 @@ func FoldersRoutes(database *sql.DB) chi.Router {
 	r.Get("/", foldersHandler.GetFolders)
 	r.Post("/", foldersHandler.CreateFolder)
 	r.Delete("/", foldersHandler.DeleteFolder)
+	r.Get("/roots", foldersHandler.GetRoots)
 	r.Get("/scan/videos", foldersHandler.ListVideoFiles)
 	r.Get("/scan/subtitles", foldersHandler.ListSubtitleFiles)
 	r.Get("/explore", foldersHandler.ExploreFolder)

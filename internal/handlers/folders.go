@@ -14,7 +14,8 @@ type FolderProcessor interface {
 	IsFile(path string) bool
 	ListVideoFiles(path string) ([]string, error)
 	ListSubtitleFiles(path string) ([]string, error)
-	ExploreFolder(path string) ([]models.FileNode, error)
+	ExploreFolder(path string) (models.ExploreResponse, error)
+	GetRoots() []models.RootEntry
 }
 
 type FolderHandler struct {
@@ -140,7 +141,7 @@ func (h *FolderHandler) ExploreFolder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	nodes, err := h.Service.ExploreFolder(folderPath)
+	result, err := h.Service.ExploreFolder(folderPath)
 	if err != nil {
 		utils.LogError("folder_handler", "Failed to explore folder via service", map[string]any{
 			"path":  folderPath,
@@ -150,9 +151,10 @@ func (h *FolderHandler) ExploreFolder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if nodes == nil {
-		nodes = []models.FileNode{}
-	}
+	utils.JSON(w, http.StatusOK, "success", "Folder explored", result)
+}
 
-	utils.JSON(w, http.StatusOK, "success", "Folder explored", nodes)
+func (h *FolderHandler) GetRoots(w http.ResponseWriter, r *http.Request) {
+	roots := h.Service.GetRoots()
+	utils.JSON(w, http.StatusOK, "success", "Roots retrieved", roots)
 }

@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -181,16 +182,20 @@ func (s *VideoService) ExtractSubtitle(videoPath string, subtitleId int) (string
 		return "", err
 	}
 
-	content, errRead := os.ReadFile(subPath)
-	if errRead == nil && len(content) > 0 {
-		header := string(content)
-		if len(header) > 100 {
-			header = header[:100]
-		}
+	f, errOpen := os.Open(subPath)
+	if errOpen == nil {
+		headerBuf := make([]byte, 128)
+		n, _ := io.ReadFull(f, headerBuf)
+		f.Close()
+		header := string(headerBuf[:n])
 
 		if strings.Contains(header, "[Script Info]") && strings.HasSuffix(subPath, ".srt") {
 			newPath := strings.TrimSuffix(subPath, ".srt") + ".ass"
-			os.Rename(subPath, newPath)
+			if err := os.Rename(subPath, newPath); err != nil {
+				utils.LogError("video", "Failed to rename extracted subtitle", map[string]any{"old": subPath, "new": newPath, "error": err.Error()})
+				utils.SendSSE("error", "video", "Failed to rename extracted subtitle file.", nil)
+				return "", fmt.Errorf("failed to rename extracted subtitle: %w", err)
+			}
 			subPath = newPath
 		}
 	}

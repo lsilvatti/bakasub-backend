@@ -91,6 +91,7 @@ type UpdateConfigRequest struct {
 	LogRetentionDays       int    `json:"log_retention_days" validate:"required"`
 	OpenRouterApiKey       string `json:"openrouter_api_key"`
 	TmdbAccessToken        string `json:"tmdb_access_token"`
+	TmdbMetadataEnabled    bool   `json:"tmdb_metadata_enabled"`
 	ConcurrentTranslations int    `json:"concurrent_translations"`
 	MaxRetries             int    `json:"max_retries"`
 	BaseRetryDelay         int    `json:"base_retry_delay"`
@@ -152,6 +153,7 @@ func (r *UpdateConfigRequest) ToModel() models.UserConfig {
 		LogRetentionDays:       r.LogRetentionDays,
 		OpenRouterApiKey:       r.OpenRouterApiKey,
 		TmdbAccessToken:        r.TmdbAccessToken,
+		TmdbMetadataEnabled:    r.TmdbMetadataEnabled,
 		ConcurrentTranslations: r.ConcurrentTranslations,
 		MaxRetries:             r.MaxRetries,
 		BaseRetryDelay:         r.BaseRetryDelay,

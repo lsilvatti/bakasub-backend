@@ -1,6 +1,6 @@
 -- +goose Up
 CREATE TABLE user_config (
-    id SERIAL PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     default_model TEXT NOT NULL,
     default_preset TEXT NOT NULL,
     remove_sdh_default BOOLEAN DEFAULT FALSE,
@@ -12,17 +12,17 @@ CREATE TABLE user_config (
 );
 
 CREATE TABLE folders (
-    id SERIAL PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     alias TEXT NOT NULL,
     path TEXT NOT NULL UNIQUE
 );
 
 CREATE TABLE logs (
-    id SERIAL PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     level TEXT NOT NULL,
     module TEXT NOT NULL,
     message TEXT NOT NULL,
-    metadata JSONB,
+    metadata TEXT,
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

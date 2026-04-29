@@ -28,24 +28,21 @@ func (s *LogService) CreateLog(level, module, message string, metadata map[strin
 		}
 	}
 
-	_, err = s.DB.Exec("INSERT INTO logs (level, module, message, metadata) VALUES ($1, $2, $3, $4)", level, module, message, string(metaJSON))
+	_, err = s.DB.Exec("INSERT INTO logs (level, module, message, metadata) VALUES (?, ?, ?, ?)", level, module, message, string(metaJSON))
 	return err
 }
 
 func (s *LogService) GetLogs(limit, offset int, level, module string) ([]models.LogEntry, int, error) {
 	var conditions []string
 	var args []any
-	argID := 1
 
 	if level != "" {
-		conditions = append(conditions, fmt.Sprintf("level = $%d", argID))
+		conditions = append(conditions, "level = ?")
 		args = append(args, level)
-		argID++
 	}
 	if module != "" {
-		conditions = append(conditions, fmt.Sprintf("module = $%d", argID))
+		conditions = append(conditions, "module = ?")
 		args = append(args, module)
-		argID++
 	}
 
 	whereClause := ""
@@ -60,7 +57,7 @@ func (s *LogService) GetLogs(limit, offset int, level, module string) ([]models.
 		return nil, 0, err
 	}
 
-	query := fmt.Sprintf("SELECT id, level, module, message, metadata, timestamp FROM logs %s ORDER BY timestamp DESC LIMIT $%d OFFSET $%d", whereClause, argID, argID+1)
+	query := fmt.Sprintf("SELECT id, level, module, message, metadata, timestamp FROM logs %s ORDER BY timestamp DESC LIMIT ? OFFSET ?", whereClause)
 	args = append(args, limit, offset)
 
 	rows, err := s.DB.Query(query, args...)
@@ -114,7 +111,7 @@ func (s *LogService) pruneOldLogs() {
 	}
 
 	cutoffTime := time.Now().AddDate(0, 0, -retentionDays)
-	_, err = s.DB.Exec("DELETE FROM logs WHERE timestamp < $1", cutoffTime)
+	_, err = s.DB.Exec("DELETE FROM logs WHERE timestamp < ?", cutoffTime)
 	if err != nil {
 		_ = s.CreateLog("error", "log_service", "Failed to prune old logs", map[string]any{"error": err.Error()})
 	}

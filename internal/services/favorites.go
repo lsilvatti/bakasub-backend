@@ -47,6 +47,6 @@ func (s *FavoritesService) UpdateFavorites(favorites []string) error {
 		favJSON = []byte("[]")
 	}
 
-	_, err = s.DB.Exec(`UPDATE user_config SET favorite_models = $1 WHERE id = 1`, favJSON)
+	_, err = s.DB.Exec(`UPDATE user_config SET favorite_models = ? WHERE id = 1`, favJSON)
 	return err
 }

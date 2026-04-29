@@ -8,7 +8,7 @@ Hmph! Então você achou o repositório backend do **Bakasub**? Não vá pensand
 Não ache que pode me rodar numa batata. Você precisa das ferramentas certas!
 * **Linguagem:** Go (Golang) 1.22+ (Porque velocidade importa, obviamente!)
 * **Router:** `go-chi/chi` (APIs versionadas em V1, mantenha isso organizado!)
-* **Banco de Dados:** **PostgreSQL**. Eu evoluí do SQLite porque agora eu lido com traduções em lote concorrentes e uma memória de tradução pesada. Tente acompanhar!
+* **Banco de Dados:** **SQLite em arquivo**. Eu mantenho tudo autocontido e persistido localmente, o que facilita bem mais o empacotamento desktop.
 * **Processamento de Mídia:** FFmpeg & MKVToolNix (Eu preciso disso para extrair e costurar suas legendas de volta, idiota!)
 * **Provedor de IA:** OpenRouter API (Claude 3.5 Sonnet, GPT-4o, Gemini 1.5 Pro).
 * **Logging:** Logs estruturados (`slog`) com um formatador customizado pro terminal.
@@ -25,23 +25,23 @@ Eu construí isso usando **Clean Architecture** e princípios **SOLID**. Não po
 * `internal/utils`: Minhas utilidades, incluindo o **SSE Broker**. Eu envio atualizações de progresso em tempo real para o seu frontend para você não ficar se perguntando se eu travei. 
 
 ### ✨ As Funcionalidades "Geniais" Que Você Provavelmente Nem Notou:
-1. **Inferência Inteligente de Idiomas:** Eu detecto automaticamente os idiomas de origem a partir de sufixos bagunçados (como `_pt-BR` ou `-spa`) usando um sistema de mapeamento no PostgreSQL antes de mandar pra IA.
+1. **Inferência Inteligente de Idiomas:** Eu detecto automaticamente os idiomas de origem a partir de sufixos bagunçados (como `_pt-BR` ou `-spa`) usando um sistema interno de mapeamento de idiomas antes de mandar pra IA.
 2. **Presets Contextuais:** Eu não traduzo às cegas. Eu uso prompts de sistema altamente ajustados para Anime, Filmes, Documentários e Comédia, lidando automaticamente com termos de gênero neutro e ajustando a criatividade (`temperature`) na hora.
-3. **Memória de Tradução (Cache):** Eu faço um hash seguro de cada linha de diálogo que você traduz. Se você traduzir de novo, eu carrego do PostgreSQL em vez de torrar seus créditos da API do OpenRouter. 
+3. **Memória de Tradução (Cache):** Eu faço um hash seguro de cada linha de diálogo que você traduz. Se você traduzir de novo, eu carrego do SQLite em vez de torrar seus créditos da API do OpenRouter. 
 4. **Regex de Extração Inteligente:** Quando eu extraio faixas de um MKV, eu limpo automaticamente as tags de idioma zoadas.
 
 ## 💻 Como Sair Comigo (Desenvolvimento Local)
 Se você realmente quer mexer no meu código, é bom configurar as coisas direito!
 
 ### 1. Pré-requisitos
-Você precisa de Go, PostgreSQL, FFmpeg e MKVToolNix. Se você está no Arch Linux (o que você obviamente deveria estar), é só rodar:
-`sudo pacman -S go postgresql ffmpeg mkvtoolnix-cli`
+Você precisa de Go, FFmpeg e MKVToolNix. Se você está no Arch Linux (o que você obviamente deveria estar), é só rodar:
+`sudo pacman -S go ffmpeg mkvtoolnix-cli`
 
 ### 2. Configuração
 Faça um clone meu e instale minhas dependências:
 `go mod download`
 
-Depois, copie meu arquivo de ambiente. Coloque sua chave da API do OpenRouter e as credenciais do PostgreSQL lá. Se você deixar em branco, eu vou jogar erros 500 na sua cara!
+Depois, copie meu arquivo de ambiente. Coloque sua chave da API do OpenRouter lá e, se quiser, personalize o caminho do arquivo SQLite em `DATABASE_URL`. Se você deixar em branco, eu uso `data/bakasub.db`.
 `cp .env.example .env`
 
 *Nota: Você não precisa rodar as migrations manualmente. Eu executo os arquivos SQL puros de `internal/db/migrations/` automaticamente quando eu inicio, porque eu sou inteligente assim.*
@@ -53,7 +53,7 @@ Use o [Air](https://github.com/cosmtrek/air) para live-reloading. É o único je
 *Eu estarei esperando por suas requisições em `http://localhost:8080/api/v1/`... Não me faça esperar muito!*
 
 ## 🐳 Docker
-Ugh, tá bom. Se você é preguiçoso demais para instalar o PostgreSQL e o FFmpeg nativamente, eu fiz um Dockerfile pra você. Ele empacota tudo o que você precisa num container só.
+Ugh, tá bom. Se você é preguiçoso demais para instalar o FFmpeg nativamente, eu fiz um Dockerfile pra você. Ele empacota tudo o que você precisa num container só e guarda o SQLite em `/app/data`.
 
 `docker build -t bakasub-backend .`
 `docker run -p 8080:8080 --env-file .env bakasub-backend`

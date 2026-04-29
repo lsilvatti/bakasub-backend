@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -35,10 +36,10 @@ func main() {
 
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		dbURL = "postgres://bakasub:bakasub_password@localhost:5432/bakasub?sslmode=disable"
+		dbURL = "data/bakasub.db"
 	}
 
-	database, err := db.InitializePostgres(dbURL)
+	database, err := db.InitializeSQLite(dbURL)
 	if err != nil {
 		fmt.Printf("FATAL ERROR: Error initializing database: %v\n", err)
 		os.Exit(1)
@@ -53,7 +54,24 @@ func main() {
 	r := chi.NewRouter()
 
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:5173", "http://localhost:3000"},
+		AllowOriginFunc: func(r *http.Request, origin string) bool {
+			if origin == "" || origin == "null" {
+				return true
+			}
+
+			allowedOrigins := map[string]struct{}{
+				"http://localhost:3000": {},
+				"http://localhost:5173": {},
+				"http://127.0.0.1:3000": {},
+				"http://127.0.0.1:5173": {},
+			}
+
+			if _, ok := allowedOrigins[origin]; ok {
+				return true
+			}
+
+			return strings.HasPrefix(origin, "app://")
+		},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders:   []string{"Link"},
@@ -63,10 +81,13 @@ func main() {
 
 	r.Mount("/api/v1/", routes.APIRoutes(database, secretKey))
 
-	port := ":8080"
+	listenAddr := os.Getenv("LISTEN_ADDR")
+	if listenAddr == "" {
+		listenAddr = ":8080"
+	}
 
 	srv := &http.Server{
-		Addr:    port,
+		Addr:    listenAddr,
 		Handler: r,
 	}
 
@@ -74,13 +95,20 @@ func main() {
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
 
 	go func() {
+		logURL := listenAddr
+		if strings.HasPrefix(logURL, ":") {
+			logURL = "127.0.0.1" + logURL
+		} else if strings.HasPrefix(logURL, "0.0.0.0:") {
+			logURL = "127.0.0.1:" + strings.TrimPrefix(logURL, "0.0.0.0:")
+		}
+
 		utils.LogInfo("system", "success", "Server initialized successfully", map[string]any{
-			"url": fmt.Sprintf("http://localhost%s", port),
+			"url": fmt.Sprintf("http://%s", logURL),
 		})
 
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			utils.LogError("system", "Critical error starting server", map[string]any{
-				"port":  port,
+				"port":  listenAddr,
 				"error": err.Error(),
 			})
 			os.Exit(1)

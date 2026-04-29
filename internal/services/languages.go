@@ -14,7 +14,7 @@ func NewLanguageService(db *sql.DB) *LanguageService {
 }
 
 func (s *LanguageService) CreateLanguage(lang models.Language) error {
-	_, err := s.DB.Exec("INSERT INTO languages (code, name) VALUES ($1, $2)", lang.Code, lang.Name)
+	_, err := s.DB.Exec("INSERT INTO languages (code, name) VALUES (?, ?)", lang.Code, lang.Name)
 	return err
 }
 
@@ -42,11 +42,11 @@ func (s *LanguageService) GetLanguages() ([]models.Language, error) {
 }
 
 func (s *LanguageService) UpdateLanguage(lang models.Language) error {
-	_, err := s.DB.Exec("UPDATE languages SET name = $1 WHERE code = $2", lang.Name, lang.Code)
+	_, err := s.DB.Exec("UPDATE languages SET name = ? WHERE code = ?", lang.Name, lang.Code)
 	return err
 }
 
 func (s *LanguageService) DeleteLanguage(code string) error {
-	_, err := s.DB.Exec("DELETE FROM languages WHERE code = $1", code)
+	_, err := s.DB.Exec("DELETE FROM languages WHERE code = ?", code)
 	return err
 }

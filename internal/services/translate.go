@@ -113,7 +113,7 @@ func (s *TranslatorService) PreFlight(inputPath string, model string, targetLang
 	estCost := (float64(estInputTokens) * promptPrice) + (float64(estOutputTokens) * completionPrice)
 
 	var presetName string
-	_ = s.DB.QueryRow("SELECT name FROM translation_presets WHERE alias = $1", presetAlias).Scan(&presetName)
+	_ = s.DB.QueryRow("SELECT name FROM translation_presets WHERE alias = ?", presetAlias).Scan(&presetName)
 
 	return &models.JobEstimate{
 		TotalLines:       totalLines,
@@ -243,7 +243,7 @@ func (s *TranslatorService) getTranslationContext(targetLangCode, presetAlias, c
 	ctx.TargetLangCode = targetLangCode
 	ctx.PresetAlias = presetAlias
 
-	err := s.DB.QueryRow("SELECT system_prompt, batch_size FROM translation_presets WHERE alias = $1", presetAlias).Scan(&ctx.SystemPrompt, &ctx.MaxChars)
+	err := s.DB.QueryRow("SELECT system_prompt, batch_size FROM translation_presets WHERE alias = ?", presetAlias).Scan(&ctx.SystemPrompt, &ctx.MaxChars)
 	if err != nil {
 		return ctx, fmt.Errorf("error fetching preset '%s': %w", presetAlias, err)
 	}
@@ -252,7 +252,7 @@ func (s *TranslatorService) getTranslationContext(targetLangCode, presetAlias, c
 		ctx.SystemPrompt += fmt.Sprintf("\n\nMEDIA CONTEXT, use this informations to understand the media content, characters names and locations, history, and other relevant details:\n%s", strings.TrimSpace(contextData))
 	}
 
-	err = s.DB.QueryRow("SELECT name FROM languages WHERE code = $1", targetLangCode).Scan(&ctx.TargetLangName)
+	err = s.DB.QueryRow("SELECT name FROM languages WHERE code = ?", targetLangCode).Scan(&ctx.TargetLangName)
 	if err != nil {
 		return ctx, fmt.Errorf("error fetching language '%s': %w", targetLangCode, err)
 	}
@@ -285,7 +285,7 @@ func (s *TranslatorService) detectSourceLanguage(inputPath string) string {
 		SELECT l.name 
 		FROM language_mappings m
 		JOIN languages l ON m.language_code = l.code
-		WHERE m.alias = $1
+		WHERE m.alias = ?
 	`
 	err := s.DB.QueryRow(query, alias).Scan(&langName)
 	if err != nil {
@@ -314,7 +314,7 @@ func (s *TranslatorService) applyTranslationMemory(blocks []models.SubtitleBlock
 	placeholders := make([]string, len(blockHashes))
 	args := make([]any, len(blockHashes))
 	for i, h := range blockHashes {
-		placeholders[i] = fmt.Sprintf("$%d", i+1)
+		placeholders[i] = "?"
 		args[i] = h
 	}
 	query := fmt.Sprintf("SELECT hash, translated_text FROM translation_memory WHERE hash IN (%s)", strings.Join(placeholders, ","))
@@ -532,7 +532,7 @@ func (s *TranslatorService) processTranslationBatches(jobID string, batches [][]
 
 					s.DB.Exec(`
                         INSERT INTO translation_memory (hash, source_text, translated_text, target_lang, preset) 
-                        VALUES ($1, $2, $3, $4, $5) 
+						VALUES (?, ?, ?, ?, ?) 
                         ON CONFLICT (hash) DO NOTHING`,
 						hashStr, origText, finalTranslatedText, ctxConfig.TargetLangCode, ctxConfig.PresetAlias,
 					)

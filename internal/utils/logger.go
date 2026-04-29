@@ -94,7 +94,7 @@ func processLogs() {
 				metadataJSON = string(metadataBytes)
 			}
 
-			_, err = dbConn.Exec("INSERT INTO logs (level, module, message, metadata) VALUES ($1, $2, $3, $4)",
+			_, err = dbConn.Exec("INSERT INTO logs (level, module, message, metadata) VALUES (?, ?, ?, ?)",
 				entry.Level, entry.Module, entry.Message, metadataJSON)
 			if err != nil {
 				fmt.Printf("Erro ao salvar log no banco de dados: %v\n", err)
@@ -162,7 +162,7 @@ func AutoPruneLogs() {
 
 		cutoffTime := time.Now().AddDate(0, 0, -days)
 
-		_, err = dbConn.Exec(`DELETE FROM logs WHERE timestamp < $1`, cutoffTime)
+		_, err = dbConn.Exec(`DELETE FROM logs WHERE timestamp < ?`, cutoffTime)
 		if err == nil {
 			LogInfo("system", "info", "Old logs cleanup completed", map[string]any{"retention_days": days})
 		} else {

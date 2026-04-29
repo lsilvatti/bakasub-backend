@@ -9,7 +9,7 @@ Presta atenção! Esse é o **repositório principal**. Você não precisa olhar
 Eu orquestro tudo pra você usando Docker, fazendo o build do backend e do frontend direto das branchs principais deles. Então é só seguir as instruções e não fazer besteira!
 
 ## 🛠️ Do Que Eu Sou Feita (Arquitetura)
-* **Backend:** Go (Golang) + PostgreSQL (Eu evoluí do SQLite, tente acompanhar!)
+* **Backend:** Go (Golang) + SQLite em arquivo
 * **Frontend:** React + TypeScript + Vite (servido via Nginx)
 * **Processamento de Vídeo:** FFmpeg + MKVToolNix
 * **Orquestração:** Docker Compose
@@ -35,7 +35,7 @@ Eu orquestro tudo pra você usando Docker, fazendo o build do backend e do front
    ```bash
    docker compose up -d --build
    ```
-   *Nota: Eu vou automaticamente subir um banco de dados PostgreSQL 16, baixar o código mais recente do backend/frontend e conectar tudo. Seja paciente enquanto eu faço o build!*
+   *Nota: Eu vou subir backend e frontend, criar o arquivo SQLite automaticamente em um volume persistente e conectar tudo. Seja paciente enquanto eu faço o build!*
 
 4. **Acesse o painel:**
    Abra o seu navegador e acesse: **http://localhost:3000**

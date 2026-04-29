@@ -5,7 +5,7 @@ CREATE TABLE languages (
 );
 
 CREATE TABLE translation_presets (
-    id SERIAL PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     alias TEXT NOT NULL UNIQUE,
     name TEXT NOT NULL,
     system_prompt TEXT NOT NULL,
@@ -76,6 +76,6 @@ INSERT INTO language_mappings (alias, language_code) VALUES
 ('ru', 'ru'), ('rus', 'ru'), ('russian', 'ru');
 
 -- +goose Down
+DROP TABLE language_mappings;
 DROP TABLE translation_presets;
 DROP TABLE languages;
-DROP TABLE language_mappings;

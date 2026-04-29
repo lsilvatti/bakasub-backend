@@ -27,7 +27,7 @@ func NewFolderService(db *sql.DB, fs FolderFileSystemProvider) *FolderService {
 }
 
 func (s *FolderService) CreateFolder(folder models.FolderConfig) error {
-	query := "INSERT INTO folders (alias, path) VALUES ($1, $2)"
+	query := "INSERT INTO folders (alias, path) VALUES (?, ?)"
 	_, err := s.DB.Exec(query, folder.Alias, folder.Path)
 
 	if err != nil {
@@ -48,7 +48,7 @@ func (s *FolderService) CreateFolder(folder models.FolderConfig) error {
 }
 
 func (s *FolderService) DeleteFolder(id int) bool {
-	query := "DELETE FROM folders WHERE id = $1"
+	query := "DELETE FROM folders WHERE id = ?"
 	result, err := s.DB.Exec(query, id)
 	if err != nil {
 		utils.LogError("folder", "Failed to execute delete folder query", map[string]any{

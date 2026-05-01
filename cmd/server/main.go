@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"strings"
@@ -59,14 +60,7 @@ func main() {
 				return true
 			}
 
-			allowedOrigins := map[string]struct{}{
-				"http://localhost:3000": {},
-				"http://localhost:5173": {},
-				"http://127.0.0.1:3000": {},
-				"http://127.0.0.1:5173": {},
-			}
-
-			if _, ok := allowedOrigins[origin]; ok {
+			if isAllowedLocalOrigin(origin) {
 				return true
 			}
 
@@ -128,4 +122,18 @@ func main() {
 	}
 
 	utils.LogInfo("system", "success", "Server shutdown completed successfully", nil)
+}
+
+func isAllowedLocalOrigin(origin string) bool {
+	parsedOrigin, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+
+	if parsedOrigin.Scheme != "http" && parsedOrigin.Scheme != "https" {
+		return false
+	}
+
+	hostname := parsedOrigin.Hostname()
+	return hostname == "localhost" || hostname == "127.0.0.1"
 }

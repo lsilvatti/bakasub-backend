@@ -235,10 +235,18 @@ func (s *FolderService) ExploreFolder(dirPath string) (models.ExploreResponse, e
 			continue
 		}
 
+		fullPath := filepath.Join(dirPath, entry.Name())
+		isDirectory := entry.IsDir()
+		if !isDirectory {
+			if info, statErr := os.Stat(fullPath); statErr == nil {
+				isDirectory = info.IsDir()
+			}
+		}
+
 		nodes = append(nodes, models.FileNode{
 			Name:        entry.Name(),
-			Path:        filepath.Join(dirPath, entry.Name()),
-			IsDirectory: entry.IsDir(),
+			Path:        fullPath,
+			IsDirectory: isDirectory,
 		})
 	}
 

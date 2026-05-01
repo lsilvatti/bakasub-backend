@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"bakasub-backend/internal/db"
@@ -49,6 +48,11 @@ type jobsResponse struct {
 	Limit int                     `json:"limit"`
 }
 
+type healthResponse struct {
+	OK         bool                      `json:"ok"`
+	VideoTools services.VideoToolsStatus `json:"videoTools"`
+}
+
 func TestSQLiteAPISmoke(t *testing.T) {
 	tempDir := t.TempDir()
 	database := openSQLiteTestDB(t, filepath.Join(tempDir, "smoke.db"))
@@ -65,23 +69,28 @@ func TestSQLiteAPISmoke(t *testing.T) {
 	baseURL := server.URL + "/api/v1"
 
 	t.Run("health", func(t *testing.T) {
-		resp, err := client.Get(baseURL + "/health")
-		if err != nil {
-			t.Fatalf("health request failed: %v", err)
-		}
-		defer resp.Body.Close()
+		healthResp := mustJSONRequest(t, client, http.MethodGet, baseURL+"/health", nil, http.StatusOK)
+		health := decodeResponseData[healthResponse](t, healthResp)
+		expectedTools := services.CheckVideoTools()
 
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			t.Fatalf("reading health response failed: %v", err)
+		if !health.OK {
+			t.Fatal("expected health ok=true")
 		}
 
-		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("expected health status 200, got %d with body %s", resp.StatusCode, string(body))
+		if health.VideoTools.VideoProcessingAvailable != expectedTools.VideoProcessingAvailable {
+			t.Fatalf("expected video processing availability %v, got %v", expectedTools.VideoProcessingAvailable, health.VideoTools.VideoProcessingAvailable)
 		}
 
-		if strings.TrimSpace(string(body)) != "OK" {
-			t.Fatalf("expected health body OK, got %q", string(body))
+		if health.VideoTools.FFmpeg.Available != expectedTools.FFmpeg.Available {
+			t.Fatalf("expected ffmpeg availability %v, got %v", expectedTools.FFmpeg.Available, health.VideoTools.FFmpeg.Available)
+		}
+
+		if health.VideoTools.MKVMerge.Available != expectedTools.MKVMerge.Available {
+			t.Fatalf("expected mkvmerge availability %v, got %v", expectedTools.MKVMerge.Available, health.VideoTools.MKVMerge.Available)
+		}
+
+		if health.VideoTools.MKVExtract.Available != expectedTools.MKVExtract.Available {
+			t.Fatalf("expected mkvextract availability %v, got %v", expectedTools.MKVExtract.Available, health.VideoTools.MKVExtract.Available)
 		}
 	})
 

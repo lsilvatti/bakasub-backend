@@ -37,7 +37,7 @@ func (h *VideoHandler) GetTrackHandler(w http.ResponseWriter, r *http.Request) {
 			"path":  path,
 			"error": err.Error(),
 		})
-		utils.Error(w, http.StatusInternalServerError, "Error mapping file: "+err.Error())
+		utils.Error(w, statusCodeForVideoError(err), "Error mapping file: "+err.Error())
 		return
 	}
 
@@ -68,7 +68,7 @@ func (h *VideoHandler) ExtractTrackHandler(w http.ResponseWriter, r *http.Reques
 			"subtitleId": reqData.SubtitleId,
 			"error":      err.Error(),
 		})
-		utils.Error(w, http.StatusInternalServerError, "Error extracting subtitle: "+err.Error())
+		utils.Error(w, statusCodeForVideoError(err), "Error extracting subtitle: "+err.Error())
 		return
 	}
 
@@ -108,7 +108,7 @@ func (h *VideoHandler) MergeTrackHandler(w http.ResponseWriter, r *http.Request)
 			"srtPath":   reqData.SrtPath,
 			"error":     err.Error(),
 		})
-		utils.Error(w, http.StatusInternalServerError, "Error merging subtitle: "+err.Error())
+		utils.Error(w, statusCodeForVideoError(err), "Error merging subtitle: "+err.Error())
 		return
 	}
 
@@ -120,4 +120,12 @@ func (h *VideoHandler) MergeTrackHandler(w http.ResponseWriter, r *http.Request)
 	utils.JSON(w, http.StatusOK, "success", "Video generated successfully", map[string]interface{}{
 		"outVideoPath": outVideoPath,
 	})
+}
+
+func statusCodeForVideoError(err error) int {
+	if services.IsMissingVideoToolError(err) {
+		return http.StatusServiceUnavailable
+	}
+
+	return http.StatusInternalServerError
 }

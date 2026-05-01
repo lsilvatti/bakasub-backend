@@ -17,6 +17,7 @@ import (
 
 	"bakasub-backend/internal/db"
 	"bakasub-backend/internal/routes"
+	"bakasub-backend/internal/services"
 	"bakasub-backend/internal/utils"
 )
 
@@ -48,6 +49,19 @@ func main() {
 	defer database.Close()
 
 	utils.InitLogger(database)
+
+	videoTools := services.CheckVideoTools()
+	if videoTools.VideoProcessingAvailable {
+		utils.LogInfo("system", "success", "External video tools are available", map[string]any{
+			"ffmpeg":     videoTools.FFmpeg.Path,
+			"mkvmerge":   videoTools.MKVMerge.Path,
+			"mkvextract": videoTools.MKVExtract.Path,
+		})
+	} else {
+		utils.LogInfo("system", "warning", "Video processing dependencies are missing. Install FFmpeg and MKVToolNix to enable video features.", map[string]any{
+			"missing_tools": videoTools.MissingTools,
+		})
+	}
 
 	utils.InitSSEBroker()
 	go utils.AutoPruneLogs()

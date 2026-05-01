@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"bakasub-backend/internal/services"
 	"bakasub-backend/internal/utils"
 	"database/sql"
 	"net/http"
@@ -12,8 +13,13 @@ func APIRoutes(database *sql.DB, secretKey string) chi.Router {
 	r := chi.NewRouter()
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
+		utils.JSON(w, http.StatusOK, "success", "Health check completed", struct {
+			OK         bool                      `json:"ok"`
+			VideoTools services.VideoToolsStatus `json:"videoTools"`
+		}{
+			OK:         true,
+			VideoTools: services.CheckVideoTools(),
+		})
 	})
 
 	r.Mount("/openrouter", OpenRouterTranslateRoutes(database, secretKey))

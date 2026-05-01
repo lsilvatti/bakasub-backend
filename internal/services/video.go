@@ -54,7 +54,17 @@ func (s *VideoService) ScanSubtitles(videoPath string) ([]SubtitleTrack, error) 
 	utils.LogInfo("video", "info", "Scanning video for subtitle tracks", map[string]any{"videoPath": videoPath})
 	utils.SendSSE("info", "video", "Scanning video for subtitle tracks...", map[string]any{"file": filepath.Base(videoPath)})
 
-	probeCmd := exec.CommandContext(ctx, "mkvmerge", "-J", videoPath)
+	mkvmergePath, err := resolveRequiredVideoTool(toolMKVMerge)
+	if err != nil {
+		utils.LogError("video", "Scan tracks error", map[string]any{
+			"videoPath": videoPath,
+			"error":     err.Error(),
+		})
+		utils.SendSSE("error", "video", err.Error(), nil)
+		return nil, err
+	}
+
+	probeCmd := exec.CommandContext(ctx, mkvmergePath, "-J", videoPath)
 	var out bytes.Buffer
 	probeCmd.Stdout = &out
 
@@ -119,14 +129,22 @@ func (s *VideoService) ScanSubtitles(videoPath string) ([]SubtitleTrack, error) 
 
 func (s *VideoService) ExtractSubtitle(videoPath string, subtitleId int) (string, error) {
 	tracks, err := s.ScanSubtitles(videoPath)
-	if err != nil || len(tracks) == 0 {
+	if err != nil {
 		utils.LogError("video", "Extract subtitle error: no tracks found", map[string]any{
 			"videoPath":  videoPath,
 			"subtitleId": subtitleId,
 			"error":      err.Error(),
 		})
 		utils.SendSSE("error", "video", "Failed to find subtitle tracks for extraction.", nil)
-		return "", fmt.Errorf("failed to read video tracks or no tracks found: %v", err)
+		return "", fmt.Errorf("failed to read video tracks: %w", err)
+	}
+	if len(tracks) == 0 {
+		utils.LogError("video", "Extract subtitle error: no tracks found", map[string]any{
+			"videoPath":  videoPath,
+			"subtitleId": subtitleId,
+		})
+		utils.SendSSE("error", "video", "Failed to find subtitle tracks for extraction.", nil)
+		return "", fmt.Errorf("failed to read video tracks or no tracks found")
 	}
 
 	utils.LogInfo("video", "info", "Subtitle extraction initialized", map[string]any{
@@ -210,7 +228,17 @@ func (s *VideoService) ExtractWithMKVToolnix(videoPath string, subtitleId int, s
 
 	utils.LogInfo("video", "info", "Starting MKVToolnix extraction", map[string]any{"tool": "mkvextract", "video": videoPath})
 
-	extractCmd := exec.CommandContext(ctx, "mkvextract", videoPath, "tracks", fmt.Sprintf("%d:%s", subtitleId, subPath))
+	mkvextractPath, err := resolveRequiredVideoTool(toolMKVExtract)
+	if err != nil {
+		utils.LogError("video", "MKVToolnix extraction failed", map[string]any{
+			"video": videoPath,
+			"error": err.Error(),
+		})
+		utils.SendSSE("error", "video", err.Error(), nil)
+		return err
+	}
+
+	extractCmd := exec.CommandContext(ctx, mkvextractPath, videoPath, "tracks", fmt.Sprintf("%d:%s", subtitleId, subPath))
 	output, err := extractCmd.CombinedOutput()
 
 	if ctx.Err() == context.DeadlineExceeded {
@@ -237,7 +265,17 @@ func (s *VideoService) ExtractWithFFmpeg(videoPath string, subtitleId int, subPa
 
 	utils.LogInfo("video", "info", "Starting FFmpeg extraction", map[string]any{"tool": "ffmpeg", "video": videoPath})
 
-	extractCmd := exec.CommandContext(ctx, "ffmpeg", "-y", "-i", videoPath, "-map", fmt.Sprintf("0:%d", subtitleId), subPath)
+	ffmpegPath, err := resolveRequiredVideoTool(toolFFmpeg)
+	if err != nil {
+		utils.LogError("video", "FFmpeg extraction failed", map[string]any{
+			"video": videoPath,
+			"error": err.Error(),
+		})
+		utils.SendSSE("error", "video", err.Error(), nil)
+		return err
+	}
+
+	extractCmd := exec.CommandContext(ctx, ffmpegPath, "-y", "-i", videoPath, "-map", fmt.Sprintf("0:%d", subtitleId), subPath)
 	output, err := extractCmd.CombinedOutput()
 
 	if ctx.Err() == context.DeadlineExceeded {
@@ -277,7 +315,17 @@ func (s *VideoService) MergeSubtitle(videoPath string, subPath string, langCode 
 	})
 	utils.SendSSE("progress", "video", "Muxing translated subtitle into new MKV video...", map[string]any{"file": outFilename})
 
-	cmd := exec.CommandContext(ctx, "mkvmerge",
+	mkvmergePath, err := resolveRequiredVideoTool(toolMKVMerge)
+	if err != nil {
+		utils.LogError("video", "Failed to merge with mkvmerge", map[string]any{
+			"video": videoPath,
+			"error": err.Error(),
+		})
+		utils.SendSSE("error", "video", err.Error(), nil)
+		return "", err
+	}
+
+	cmd := exec.CommandContext(ctx, mkvmergePath,
 		"-o", outVideoPath,
 		videoPath,
 		"--language", "0:"+langCode,

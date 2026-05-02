@@ -3,7 +3,9 @@ package services
 import (
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 )
 
 const (
@@ -79,21 +81,48 @@ func resolveRequiredVideoTool(toolName string) (string, error) {
 
 func checkExternalTool(toolName string) ExternalToolStatus {
 	toolPath, err := exec.LookPath(toolName)
-	if err != nil {
-		message := missingToolMessage(toolName)
-		if !errors.Is(err, exec.ErrNotFound) {
-			message = fmt.Sprintf("failed to locate %s in PATH: %v", toolName, err)
-		}
-
+	if err == nil {
 		return ExternalToolStatus{
-			Available: false,
-			Error:     message,
+			Available: true,
+			Path:      toolPath,
 		}
 	}
 
+	// Fallback: search common installation directories.
+	// Useful when the process starts with a restricted PATH (e.g. desktop launchers, systemd).
+	commonDirs := []string{
+		"/usr/bin", "/usr/local/bin", "/bin",
+		"/usr/local/sbin", "/usr/sbin", "/sbin",
+		// Snap (Ubuntu/Arch)
+		"/snap/bin",
+		// Flatpak exports
+		"/var/lib/flatpak/exports/bin",
+		// NixOS / nix-env
+		"/run/current-system/sw/bin",
+		// Homebrew (Linux / macOS)
+		"/opt/homebrew/bin", "/home/linuxbrew/.linuxbrew/bin",
+		// User-level installs
+		filepath.Join(os.Getenv("HOME"), ".local/bin"),
+		filepath.Join(os.Getenv("HOME"), ".nix-profile/bin"),
+	}
+	for _, dir := range commonDirs {
+		candidate := filepath.Join(dir, toolName)
+		if _, statErr := os.Stat(candidate); statErr == nil {
+			return ExternalToolStatus{
+				Available: true,
+				Path:      candidate,
+			}
+		}
+	}
+
+	message := missingToolMessage(toolName)
+	if !errors.Is(err, exec.ErrNotFound) {
+		message = fmt.Sprintf("failed to locate %s in PATH: %v", toolName, err)
+	}
+
 	return ExternalToolStatus{
-		Available: true,
-		Path:      toolPath,
+		Available: false,
+		Error:     message,
 	}
 }
 

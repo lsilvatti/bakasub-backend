@@ -13,7 +13,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
-	"github.com/joho/godotenv"
 
 	"bakasub-backend/internal/db"
 	"bakasub-backend/internal/routes"
@@ -22,26 +21,7 @@ import (
 )
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		fmt.Println("Warning: .env file not found.")
-	}
-
-	if os.Getenv("OPENROUTER_API_KEY") == "" {
-		fmt.Println("Warning: OPENROUTER_API_KEY environment variable is not set. Set the API key in the Config page instead.")
-	}
-
-	secretKey := os.Getenv("SECRET_KEY")
-	if secretKey == "" {
-		fmt.Println("Warning: SECRET_KEY environment variable is not set. API keys will be stored as plaintext in the database.")
-	}
-
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		dbURL = "data/bakasub.db"
-	}
-
-	database, err := db.InitializeSQLite(dbURL)
+	database, err := db.InitializeSQLite("data/bakasub.db")
 	if err != nil {
 		fmt.Printf("FATAL ERROR: Error initializing database: %v\n", err)
 		os.Exit(1)
@@ -87,12 +67,9 @@ func main() {
 		MaxAge:           300,
 	}))
 
-	r.Mount("/api/v1/", routes.APIRoutes(database, secretKey))
+	r.Mount("/api/v1/", routes.APIRoutes(database, ""))
 
-	listenAddr := os.Getenv("LISTEN_ADDR")
-	if listenAddr == "" {
-		listenAddr = ":8080"
-	}
+	const listenAddr = ":8080"
 
 	srv := &http.Server{
 		Addr:    listenAddr,
